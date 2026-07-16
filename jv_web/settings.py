@@ -4,6 +4,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ─── Seguridad ───────────────────────────────────────────────────────────────
+# v1.0.0 — deploy inicial
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-insecure-key-cambiar-en-produccion')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost 127.0.0.1').split()
