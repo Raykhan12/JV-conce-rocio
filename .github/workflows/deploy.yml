@@ -1,0 +1,119 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: jv-web
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Prepare kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        run: |
+          if [ -n "${KUBE_CONFIG_DATA}" ]; then
+            echo "${KUBE_CONFIG_DATA}" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+            echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
+            export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
+          elif [ -r "/home/ramon/.kube/config" ]; then
+            echo "KUBECONFIG=/home/ramon/.kube/config" >> $GITHUB_ENV
+            export KUBECONFIG="/home/ramon/.kube/config"
+          elif [ -r "/etc/rancher/k3s/k3s.yaml" ]; then
+            echo "KUBECONFIG=/etc/rancher/k3s/k3s.yaml" >> $GITHUB_ENV
+            export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+          else
+            echo "No kubeconfig found"
+            exit 1
+          fi
+          test -r "$KUBECONFIG"
+          kubectl get nodes
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Create namespace
+        run: kubectl apply -f k8s/namespace.yaml
+
+      - name: Setup Kubernetes secrets
+        run: |
+          # Credenciales de PostgreSQL
+          kubectl create secret generic postgres-credentials \
+            --namespace=jv-web \
+            --from-literal=db-name="${{ secrets.DB_NAME }}" \
+            --from-literal=db-user="${{ secrets.DB_USER }}" \
+            --from-literal=db-password="${{ secrets.DB_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Secrets de la app (Django + email)
+          kubectl create secret generic app-secrets \
+            --namespace=jv-web \
+            --from-literal=django-secret-key="${{ secrets.DJANGO_SECRET_KEY }}" \
+            --from-literal=email-host="smtp.gmail.com" \
+            --from-literal=email-port="587" \
+            --from-literal=email-user="jjvv.villasconcerocio@gmail.com" \
+            --from-literal=email-password="${{ secrets.EMAIL_HOST_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply ConfigMap and PVCs
+        run: |
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/postgres-pvc.yaml
+          kubectl apply -f k8s/django-media-pvc.yaml
+
+      - name: Deploy PostgreSQL
+        run: |
+          kubectl apply -f k8s/postgres-deployment.yaml -n jv-web
+          kubectl apply -f k8s/postgres-service.yaml -n jv-web
+
+          echo "⏳ Esperando que PostgreSQL esté listo..."
+          kubectl wait --for=condition=ready pod -l app=postgres \
+            --timeout=120s -n jv-web
+
+      - name: Deploy Django application
+        run: |
+          # Reemplazar :latest por el tag exacto del commit
+          sed "s|raykhan007/jv-web:latest|raykhan007/jv-web:${{ env.IMAGE_TAG }}|g" \
+            k8s/django-deployment.yaml | kubectl apply -n jv-web -f -
+
+          kubectl apply -f k8s/django-service.yaml -n jv-web
+          kubectl apply -f k8s/ingress.yaml -n jv-web
+
+          echo "⏳ Esperando rollout de Django..."
+          kubectl rollout status deployment/django-app --timeout=300s -n jv-web
+
+      - name: Run Django migrations
+        run: |
+          POD=$(kubectl get pod -n jv-web -l app=django-app \
+            -o jsonpath='{.items[0].metadata.name}')
+          echo "Ejecutando migraciones en pod: $POD"
+          kubectl exec -n jv-web "$POD" -- python manage.py migrate --noinput
+          echo "✅ Migraciones completadas"
