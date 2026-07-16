@@ -112,6 +112,10 @@ SITE_URL            = os.environ.get('SITE_URL', 'http://localhost:8000')
 
 # ─── Seguridad en producción (solo cuando DEBUG=False) ───────────────────────
 if not DEBUG:
+    # Confiar en el header X-Forwarded-Proto de Nginx/Cloudflare
+    # Sin esto, Django ve HTTP (aunque el cliente usó HTTPS) y hace redirect infinito
+    SECURE_PROXY_SSL_HEADER    = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST       = True
     SECURE_SSL_REDIRECT            = True
     SESSION_COOKIE_SECURE          = True
     CSRF_COOKIE_SECURE             = True
