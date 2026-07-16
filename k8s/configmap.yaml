@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: jv-web
+data:
+  allowed-hosts: "villasconcerocio.cl www.villasconcerocio.cl"
+  default-from-email: "JJVV Villas Concepción-El Rocío <jjvv.villasconcerocio@gmail.com>"
+  junta-email: "jjvv.villasconcerocio@gmail.com"
+  site-url: "https://villasconcerocio.cl"

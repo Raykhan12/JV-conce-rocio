@@ -1,0 +1,5 @@
+{% if urgencia == 'URGENTE' %}<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">🔴 Urgente</span>
+{% elif urgencia == 'ALTA' %}<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">🟡 Alta</span>
+{% elif urgencia == 'MEDIA' %}<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">🟢 Media</span>
+{% elif urgencia == 'BAJA' %}<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">⚪ Baja</span>
+{% endif %}

@@ -1,0 +1,5 @@
+{% if estado == 'PENDIENTE' %}<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">⏳ Pendiente</span>
+{% elif estado == 'EN_PROCESO' %}<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">🔄 En Proceso</span>
+{% elif estado == 'COMPLETADO' %}<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">✅ Completado</span>
+{% elif estado == 'RECHAZADO' %}<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">❌ Rechazado</span>
+{% endif %}

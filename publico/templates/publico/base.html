@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}JJVV Villas Concepción-El Rocío{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] } } }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-gray-800 font-sans flex flex-col min-h-screen antialiased">
+
+  <!-- Navbar -->
+  <header class="bg-white/95 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <a href="{% url 'inicio' %}" class="flex items-center gap-3 shrink-0 group">
+        <img src="{% static 'img/logo.png' %}" alt="JJVV" class="h-10 w-10 rounded-xl object-cover shadow-sm group-hover:opacity-90 transition">
+        <div class="hidden sm:block leading-none">
+          <span class="block text-sm font-bold text-gray-900">JJVV Villas Concepción-El Rocío</span>
+          <span class="block text-[11px] text-gray-400 mt-0.5">villasconcerocio.cl</span>
+        </div>
+      </a>
+      <nav class="flex items-center gap-1">
+        <a href="{% url 'inicio' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Inicio</a>
+        <a href="{% url 'noticias' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Noticias</a>
+        <a href="{% url 'formularios' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Solicitudes</a>
+        {% if user.is_authenticated and user.is_staff %}
+          <a href="{% url 'dashboard' %}" class="ml-2 px-4 py-2 rounded-xl text-sm font-semibold bg-green-700 text-white hover:bg-green-800 transition shadow-sm">Panel</a>
+        {% else %}
+          <a href="{% url 'panel_login' %}" class="ml-2 px-4 py-2 rounded-xl text-sm font-semibold bg-green-700 text-white hover:bg-green-800 transition shadow-sm">Ingresar</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1">
+    {% if messages %}
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+        {% for msg in messages %}
+          <div class="p-4 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm mb-3">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="bg-gray-900 text-gray-400 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12 grid sm:grid-cols-3 gap-10">
+      <div>
+        <div class="flex items-center gap-2.5 mb-4">
+          <img src="{% static 'img/logo.png' %}" alt="JJVV" class="w-9 h-9 rounded-lg object-cover">
+          <span class="text-white font-semibold text-sm leading-snug">JJVV Villas<br>Concepción-El Rocío</span>
+        </div>
+        <p class="text-xs leading-relaxed">Trabajando juntos por una comunidad más segura, limpia y solidaria.</p>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold text-sm mb-4">Trámites en línea</h4>
+        <ul class="space-y-2.5 text-xs">
+          <li><a href="{% url 'certificado' %}" class="hover:text-green-400 transition">📄 Certificado de Residencia</a></li>
+          <li><a href="{% url 'denuncia' %}" class="hover:text-green-400 transition">🚨 Reportar Problemática</a></li>
+          <li><a href="{% url 'noticias' %}" class="hover:text-green-400 transition">📰 Noticias de la villa</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold text-sm mb-4">Números de emergencia</h4>
+        <ul class="space-y-2.5 text-xs">
+          <li class="flex justify-between"><span>Carabineros</span><span class="text-white font-bold">133</span></li>
+          <li class="flex justify-between"><span>Bomberos</span><span class="text-white font-bold">132</span></li>
+          <li class="flex justify-between"><span>SAMU</span><span class="text-white font-bold">131</span></li>
+          <li class="flex justify-between"><span>Seguridad Municipal</span><span class="text-white font-bold">1404</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-gray-800 py-4 text-center text-xs text-gray-600">
+      © 2025 Junta de Vecinos Villas Concepción-El Rocío
+    </div>
+  </footer>
+
+</body>
+</html>

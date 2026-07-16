@@ -1,0 +1,107 @@
+{% extends "publico/base.html" %}
+{% block title %}Reporte Vecinal — JJVV{% endblock %}
+
+{% block content %}
+<div class="bg-green-800 text-white">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+    <a href="{% url 'formularios' %}" class="text-green-300 text-sm hover:text-white transition flex items-center gap-1 mb-3">← Volver</a>
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-2xl">🚨</div>
+      <div>
+        <h1 class="text-2xl font-extrabold">Reporte de Problemáticas Vecinales</h1>
+        <p class="text-green-200 text-sm mt-0.5">Todas las solicitudes son revisadas por la directiva · Los campos con <span class="text-red-300">*</span> son obligatorios</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-2xl mx-auto px-4 sm:px-6 py-10">
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <!-- Datos del solicitante -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold">1</span>
+        Datos del Solicitante
+      </h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include "publico/_field.html" with field=form.nombre required=True %}
+        {% include "publico/_field.html" with field=form.direccion required=True %}
+        {% include "publico/_field.html" with field=form.telefono required=True %}
+        {% include "publico/_field.html" with field=form.email required=False %}
+      </div>
+    </div>
+
+    <!-- Tipo de problema -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold">2</span>
+        Tipo de Problemática
+      </h2>
+      {% include "publico/_field.html" with field=form.categoria required=True %}
+    </div>
+
+    <!-- Detalles -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold">3</span>
+        Detalles de la Problemática
+      </h2>
+      <div class="space-y-4">
+        {% include "publico/_field.html" with field=form.descripcion required=True %}
+        {% include "publico/_field.html" with field=form.ubicacion required=True %}
+        <div>
+          <p class="text-sm font-medium text-gray-700 mb-2.5">{{ form.horario.label }}</p>
+          <div class="grid grid-cols-2 gap-y-2 gap-x-4">
+            {% for checkbox in form.horario %}
+            <label class="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer hover:text-gray-900 transition">
+              {{ checkbox.tag }} {{ checkbox.choice_label }}
+            </label>
+            {% endfor %}
+          </div>
+          {% if form.horario.errors %}
+            <p class="text-red-500 text-xs mt-1.5">{{ form.horario.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+        {% include "publico/_field.html" with field=form.ocurrido_antes required=False %}
+      </div>
+    </div>
+
+    <!-- Urgencia -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold">4</span>
+        Nivel de Urgencia
+      </h2>
+      {% include "publico/_field.html" with field=form.urgencia required=True %}
+    </div>
+
+    <!-- Evidencia -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-1 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold">5</span>
+        Evidencia <span class="text-gray-400 font-normal normal-case tracking-normal">(opcional)</span>
+      </h2>
+      <p class="text-xs text-gray-400 mb-4 ml-7">Si tiene fotos o videos, puede enviarlos al correo de la JJVV junto con este reporte.</p>
+      <div class="space-y-4">
+        {% include "publico/_field.html" with field=form.desc_evidencia required=False %}
+        {% include "publico/_field.html" with field=form.notas_adicionales required=False %}
+      </div>
+    </div>
+
+    <div class="bg-amber-50 border border-amber-100 rounded-2xl px-6 py-4 text-sm text-amber-800">
+      ⚠️ Si la situación es una <strong>emergencia</strong>, llame a Carabineros al <strong>133</strong> o a Seguridad Municipal al <strong>1404</strong>.
+    </div>
+
+    <button type="submit" class="w-full bg-green-700 hover:bg-green-800 active:bg-green-900 text-white font-semibold py-3.5 rounded-xl transition shadow-sm text-sm">
+      Enviar reporte
+    </button>
+  </form>
+</div>
+{% endblock %}

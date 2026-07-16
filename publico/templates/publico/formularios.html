@@ -1,0 +1,41 @@
+{% extends "publico/base.html" %}
+{% block title %}Formularios — JJVV Villas Concepción-El Rocío{% endblock %}
+
+{% block content %}
+<div class="bg-green-800 text-white">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+    <h1 class="text-3xl font-extrabold mb-1">Trámites en línea</h1>
+    <p class="text-green-200 text-sm">Seleccione el trámite que desea realizar</p>
+  </div>
+</div>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+  <div class="grid sm:grid-cols-2 gap-6">
+    <a href="{% url 'certificado' %}" class="group bg-white rounded-2xl border-2 border-gray-100 p-8 hover:border-green-300 hover:shadow-xl transition-all duration-300">
+      <div class="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:bg-green-100 transition">📄</div>
+      <h2 class="text-xl font-bold text-gray-900 mb-3">Certificado de Residencia</h2>
+      <p class="text-gray-500 text-sm leading-relaxed mb-6">
+        Acredita tu domicilio en la villa. Útil para trámites personales, postulación a beneficios sociales, matrícula escolar y acreditación de domicilio.
+      </p>
+      <div class="flex items-center gap-2 text-green-700 font-semibold text-sm group-hover:gap-3 transition-all">
+        Completar solicitud <span>→</span>
+      </div>
+    </a>
+
+    <a href="{% url 'denuncia' %}" class="group bg-white rounded-2xl border-2 border-gray-100 p-8 hover:border-amber-300 hover:shadow-xl transition-all duration-300">
+      <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:bg-amber-100 transition">🚨</div>
+      <h2 class="text-xl font-bold text-gray-900 mb-3">Reportar Problemática Vecinal</h2>
+      <p class="text-gray-500 text-sm leading-relaxed mb-6">
+        Informa problemas de seguridad, infraestructura, medio ambiente, tránsito o convivencia. Tu reporte llega directo a la directiva.
+      </p>
+      <div class="flex items-center gap-2 text-amber-700 font-semibold text-sm group-hover:gap-3 transition-all">
+        Hacer reporte <span>→</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="mt-8 bg-amber-50 border border-amber-100 rounded-2xl px-6 py-4 text-sm text-amber-800 text-center">
+    ⚠️ Si la situación es una <strong>emergencia</strong>, llame a Carabineros al <strong>133</strong> o a Seguridad Municipal al <strong>1404</strong>.
+  </div>
+</div>
+{% endblock %}

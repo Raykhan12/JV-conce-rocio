@@ -1,0 +1,19 @@
+{% extends "publico/base.html" %}
+{% block title %}Reporte enviado — JJVV{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto px-4 sm:px-6 py-20 text-center">
+  <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">✅</div>
+  <h1 class="text-3xl font-extrabold text-gray-900 mb-3">¡Reporte recibido!</h1>
+  <p class="text-gray-500 leading-relaxed mb-4">
+    Gracias por contribuir a mejorar nuestra comunidad. La directiva revisará su reporte y se pondrá en contacto si es necesario.
+  </p>
+  <p class="text-xs text-gray-400 mb-8">
+    Si la situación es una emergencia, llame a Carabineros (<strong>133</strong>) o a Seguridad Municipal (<strong>1404</strong>).
+  </p>
+  <div class="flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="{% url 'inicio' %}" class="bg-green-700 hover:bg-green-800 text-white font-semibold px-6 py-3 rounded-xl transition shadow-sm text-sm">Volver al inicio</a>
+    <a href="{% url 'formularios' %}" class="border border-gray-200 hover:border-green-300 text-gray-600 hover:text-green-700 font-semibold px-6 py-3 rounded-xl transition text-sm">Hacer otra solicitud</a>
+  </div>
+</div>
+{% endblock %}
