@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils.timezone import now
 
 from .models import Noticia
-from .forms import CertificadoForm, DenunciaForm
+from .forms import CertificadoForm, DenunciaForm, IngresoForm
 
 
 def inicio(request):
@@ -19,6 +19,10 @@ def noticias(request):
 
 def formularios(request):
     return render(request, 'publico/formularios.html')
+
+
+def estatutos(request):
+    return render(request, 'publico/estatutos.html')
 
 
 # ─── Certificado de Residencia ───────────────────────────────────────────────
@@ -89,6 +93,42 @@ def denuncia(request):
 
 def denuncia_exito(request):
     return render(request, 'publico/denuncia_exito.html')
+
+
+# ─── Solicitud de Ingreso ────────────────────────────────────────────────────
+
+def ingreso(request):
+    if request.method == 'POST':
+        form = IngresoForm(request.POST)
+        if form.is_valid():
+            solicitud = form.save()
+            _notificar_junta(
+                asunto=f'[Ingreso] Nueva solicitud de {solicitud.nombre} ({solicitud.get_villa_display()})',
+                cuerpo=(
+                    f'Se recibió una nueva solicitud de ingreso a la Junta de Vecinos.\n'
+                    f'{"─"*50}\n'
+                    f'Nombre:       {solicitud.nombre}\n'
+                    f'RUT:          {solicitud.rut}\n'
+                    f'Nacimiento:   {solicitud.fecha_nacimiento}\n'
+                    f'Estado civil: {solicitud.get_estado_civil_display()}\n'
+                    f'Ocupación:    {solicitud.ocupacion or "—"}\n'
+                    f'Villa:        {solicitud.get_villa_display()}\n'
+                    f'Dirección:    {solicitud.direccion}\n'
+                    f'Condición:    {solicitud.get_condicion_display()}\n'
+                    f'Teléfono:     {solicitud.telefono}\n'
+                    f'Email:        {solicitud.email or "—"}\n'
+                    f'{"─"*50}\n'
+                    f'Ver en el panel: {settings.SITE_URL}/panel/ingreso/{solicitud.pk}/\n'
+                ),
+            )
+            return redirect('ingreso_exito')
+    else:
+        form = IngresoForm()
+    return render(request, 'publico/ingreso.html', {'form': form})
+
+
+def ingreso_exito(request):
+    return render(request, 'publico/ingreso_exito.html')
 
 
 # ─── Helper interno ──────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ spec:
               service:
                 name: django-app
                 port:
-                  number: 8000
+                  number: 80
     - host: www.villasconcerocio.cl
       http:
         paths:
@@ -34,4 +34,4 @@ spec:
               service:
                 name: django-app
                 port:
-                  number: 8000
+                  number: 80

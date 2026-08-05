@@ -1,0 +1,91 @@
+{% extends "publico/base.html" %}
+{% block title %}Solicitud de Ingreso — JJVV Villas Concepción-El Rocío{% endblock %}
+
+{% block content %}
+<div class="bg-green-800 text-white">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+    <a href="{% url 'formularios' %}" class="text-green-300 text-sm hover:text-white transition flex items-center gap-1 mb-3">← Volver</a>
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-2xl">🏘</div>
+      <div>
+        <h1 class="text-2xl font-extrabold">Solicitud de Ingreso a la Junta de Vecinos</h1>
+        <p class="text-green-200 text-sm mt-0.5">Villas Concepción-El Rocío &nbsp;·&nbsp; Los campos con <span class="text-red-300">*</span> son obligatorios</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-2xl mx-auto px-4 sm:px-6 py-10">
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <!-- 1. Datos personales -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs">1</span>
+        Datos Personales
+      </h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include "publico/_field.html" with field=form.nombre required=True %}
+        {% include "publico/_field.html" with field=form.rut required=True %}
+        {% include "publico/_field.html" with field=form.fecha_nacimiento required=True %}
+        {% include "publico/_field.html" with field=form.estado_civil required=True %}
+        {% include "publico/_field.html" with field=form.ocupacion required=False %}
+      </div>
+    </div>
+
+    <!-- 2. Residencia -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs">2</span>
+        Residencia
+      </h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include "publico/_field.html" with field=form.villa required=True %}
+        {% include "publico/_field.html" with field=form.direccion required=True %}
+        {% include "publico/_field.html" with field=form.condicion required=True %}
+      </div>
+      <p class="text-xs text-gray-400 mt-3">La junta de vecinos agrupa a los residentes de Villa Concepción y Villa El Rocío.</p>
+    </div>
+
+    <!-- 3. Contacto -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs">3</span>
+        Contacto
+      </h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include "publico/_field.html" with field=form.telefono required=True %}
+        {% include "publico/_field.html" with field=form.email required=False %}
+      </div>
+    </div>
+
+    <!-- 4. Declaración -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-green-700 uppercase tracking-widest mb-5 flex items-center gap-2">
+        <span class="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs">4</span>
+        Declaración
+      </h2>
+      <label class="flex items-start gap-3 cursor-pointer group">
+        {{ form.autorizado }}
+        <span class="text-sm text-gray-600 leading-relaxed group-hover:text-gray-800 transition">
+          {{ form.autorizado.label }} <span class="text-red-400">*</span>
+        </span>
+      </label>
+      {% if form.autorizado.errors %}
+        <p class="text-red-500 text-xs mt-1.5">{{ form.autorizado.errors|join:", " }}</p>
+      {% endif %}
+    </div>
+
+    <button type="submit"
+      class="w-full bg-green-700 hover:bg-green-800 active:bg-green-900 text-white font-semibold py-3.5 rounded-xl transition shadow-sm text-sm">
+      Enviar solicitud de ingreso
+    </button>
+  </form>
+</div>
+{% endblock %}

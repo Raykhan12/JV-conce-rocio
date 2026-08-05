@@ -1,5 +1,5 @@
 from django import forms
-from solicitudes.models import SolicitudCertificado, DenunciaVecinal
+from solicitudes.models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso
 
 _INPUT = {
     'class': (
@@ -88,4 +88,36 @@ class DenunciaForm(forms.ModelForm):
             'ocurrido_antes': forms.Textarea(attrs={'rows': 2, 'placeholder': '¿Ha ocurrido antes? ¿Cuándo fue la última vez?'}),
             'desc_evidencia':     forms.Textarea(attrs={'rows': 2, 'placeholder': 'Describa qué tipo de evidencia tiene (fotos, videos, testigos).'}),
             'notas_adicionales':  forms.Textarea(attrs={'rows': 2, 'placeholder': '¿Algo más que quiera agregar?'}),
+        }
+
+
+class IngresoForm(forms.ModelForm):
+    autorizado = forms.BooleanField(
+        label=(
+            'Declaro que los datos proporcionados son verídicos y que deseo incorporarme '
+            'voluntariamente a la Junta de Vecinos Villas Concepción-El Rocío, '
+            'autorizando el uso de mis datos personales para dicho fin.'
+        ),
+        required=True,
+    )
+
+    class Meta:
+        model  = SolicitudIngreso
+        fields = [
+            'nombre', 'rut', 'fecha_nacimiento', 'estado_civil', 'ocupacion',
+            'villa', 'direccion', 'condicion',
+            'telefono', 'email',
+            'autorizado',
+        ]
+        widgets = {
+            'nombre':           forms.TextInput(attrs={**_INPUT, 'placeholder': 'Ej: Juan Pérez González'}),
+            'rut':              forms.TextInput(attrs={**_INPUT, 'placeholder': 'Ej: 12.345.678-9'}),
+            'fecha_nacimiento': forms.DateInput(attrs={**_INPUT, 'type': 'date'}),
+            'estado_civil':     forms.Select(attrs=_SELECT),
+            'ocupacion':        forms.TextInput(attrs={**_INPUT, 'placeholder': 'Ej: Profesora, Mecánico, Jubilado/a'}),
+            'villa':            forms.Select(attrs=_SELECT),
+            'direccion':        forms.TextInput(attrs={**_INPUT, 'placeholder': 'Calle y número'}),
+            'condicion':        forms.Select(attrs=_SELECT),
+            'telefono':         forms.TextInput(attrs={**_INPUT, 'placeholder': '+56 9 1234 5678'}),
+            'email':            forms.EmailInput(attrs={**_INPUT, 'placeholder': 'correo@ejemplo.com (opcional)'}),
         }

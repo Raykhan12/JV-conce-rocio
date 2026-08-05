@@ -31,6 +31,7 @@
         <a href="{% url 'inicio' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Inicio</a>
         <a href="{% url 'noticias' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Noticias</a>
         <a href="{% url 'formularios' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Solicitudes</a>
+        <a href="{% url 'estatutos' %}" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 transition">Estatutos</a>
         {% if user.is_authenticated and user.is_staff %}
           <a href="{% url 'dashboard' %}" class="ml-2 px-4 py-2 rounded-xl text-sm font-semibold bg-green-700 text-white hover:bg-green-800 transition shadow-sm">Panel</a>
         {% else %}
@@ -66,6 +67,7 @@
           <li><a href="{% url 'certificado' %}" class="hover:text-green-400 transition">📄 Certificado de Residencia</a></li>
           <li><a href="{% url 'denuncia' %}" class="hover:text-green-400 transition">🚨 Reportar Problemática</a></li>
           <li><a href="{% url 'noticias' %}" class="hover:text-green-400 transition">📰 Noticias de la villa</a></li>
+          <li><a href="{% url 'estatutos' %}" class="hover:text-green-400 transition">📋 Estatutos</a></li>
         </ul>
       </div>
       <div>
@@ -74,7 +76,7 @@
           <li class="flex justify-between"><span>Carabineros</span><span class="text-white font-bold">133</span></li>
           <li class="flex justify-between"><span>Bomberos</span><span class="text-white font-bold">132</span></li>
           <li class="flex justify-between"><span>SAMU</span><span class="text-white font-bold">131</span></li>
-          <li class="flex justify-between"><span>Seguridad Municipal</span><span class="text-white font-bold">1404</span></li>
+          <li class="flex justify-between"><span>Seguridad Municipal</span><span class="text-white font-bold">*4110</span></li>
         </ul>
       </div>
     </div>

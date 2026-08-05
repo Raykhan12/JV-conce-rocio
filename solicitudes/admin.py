@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SolicitudCertificado, DenunciaVecinal
+from .models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso
 
 
 @admin.register(SolicitudCertificado)
@@ -42,6 +42,33 @@ class DenunciaAdmin(admin.ModelAdmin):
         }),
         ('Evidencia', {
             'fields': ('desc_evidencia', 'notas_adicionales'),
+        }),
+        ('Gestión Interna', {
+            'fields': ('estado', 'asignado_a', 'notas_internas'),
+        }),
+        ('Fechas', {
+            'fields': ('creado_en', 'actualizado'),
+            'classes': ('collapse',),
+        }),
+    )
+
+
+@admin.register(SolicitudIngreso)
+class IngresoAdmin(admin.ModelAdmin):
+    list_display   = ('nombre', 'rut', 'villa', 'condicion', 'estado', 'asignado_a', 'creado_en')
+    list_filter    = ('estado', 'villa', 'condicion', 'estado_civil')
+    list_editable  = ('estado', 'asignado_a')
+    search_fields  = ('nombre', 'rut', 'email', 'direccion')
+    readonly_fields = ('creado_en', 'actualizado')
+    fieldsets = (
+        ('Datos Personales', {
+            'fields': ('nombre', 'rut', 'fecha_nacimiento', 'estado_civil', 'ocupacion'),
+        }),
+        ('Residencia', {
+            'fields': ('villa', 'direccion', 'condicion'),
+        }),
+        ('Contacto', {
+            'fields': ('telefono', 'email'),
         }),
         ('Gestión Interna', {
             'fields': ('estado', 'asignado_a', 'notas_internas'),

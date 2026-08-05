@@ -65,6 +65,62 @@ class SolicitudCertificado(models.Model):
         return f'Certificado — {self.nombre} [{self.get_estado_display()}]'
 
 
+class SolicitudIngreso(models.Model):
+    VILLA_CHOICES = [
+        ('CONCEPCION', 'Villa Concepción'),
+        ('EL_ROCIO',   'Villa El Rocío'),
+    ]
+    ESTADO_CIVIL_CHOICES = [
+        ('SOLTERO',       'Soltero/a'),
+        ('CASADO',        'Casado/a'),
+        ('CONVIVIENTE',   'Conviviente civil'),
+        ('DIVORCIADO',    'Divorciado/a'),
+        ('VIUDO',         'Viudo/a'),
+    ]
+    CONDICION_CHOICES = [
+        ('PROPIETARIO',  'Propietario/a'),
+        ('ARRENDATARIO', 'Arrendatario/a'),
+        ('OTRO',         'Otra situación'),
+    ]
+
+    # Datos personales
+    nombre           = models.CharField('Nombre completo', max_length=150)
+    rut              = models.CharField('RUT', max_length=12)
+    fecha_nacimiento = models.DateField('Fecha de nacimiento')
+    estado_civil     = models.CharField('Estado civil', max_length=15, choices=ESTADO_CIVIL_CHOICES)
+    ocupacion        = models.CharField('Profesión / Ocupación', max_length=100, blank=True)
+
+    # Residencia
+    villa     = models.CharField('Villa', max_length=15, choices=VILLA_CHOICES)
+    direccion = models.CharField('Dirección (calle y número)', max_length=200)
+    condicion = models.CharField('Condición de vivienda', max_length=15, choices=CONDICION_CHOICES)
+
+    # Contacto
+    telefono = models.CharField('Teléfono de contacto', max_length=20)
+    email    = models.EmailField('Correo electrónico', blank=True)
+
+    # Autorización
+    autorizado = models.BooleanField('Autoriza uso de datos personales', default=False)
+
+    # Gestión interna
+    estado         = models.CharField('Estado', max_length=15, choices=ESTADO_CHOICES, default='PENDIENTE')
+    asignado_a     = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='ingresos_asignados', verbose_name='Asignado a',
+    )
+    notas_internas = models.TextField('Notas internas', blank=True)
+    creado_en      = models.DateTimeField(auto_now_add=True)
+    actualizado    = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = 'Solicitud de Ingreso'
+        verbose_name_plural = 'Solicitudes de Ingreso'
+        ordering            = ['-creado_en']
+
+    def __str__(self):
+        return f'Ingreso — {self.nombre} ({self.get_villa_display()}) [{self.get_estado_display()}]'
+
+
 class DenunciaVecinal(models.Model):
     CATEGORIA_CHOICES = [
         ('SEGURIDAD',     '🚨 Seguridad'),
