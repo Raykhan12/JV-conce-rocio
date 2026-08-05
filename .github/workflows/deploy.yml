@@ -117,5 +117,15 @@ jobs:
             -o jsonpath='{.items[0].metadata.name}')
           echo "Ejecutando migraciones en pod: $POD"
           kubectl wait --for=condition=Ready pod/"$POD" -n jv-web --timeout=60s
-          kubectl exec -n jv-web "$POD" -- python manage.py migrate --noinput
-          echo "✅ Migraciones completadas"
+
+          # Reintentar hasta 6 veces (containerd puede tardar en registrar el proceso)
+          for i in $(seq 1 6); do
+            if kubectl exec -n jv-web "$POD" -- python manage.py migrate --noinput; then
+              echo "✅ Migraciones completadas"
+              exit 0
+            fi
+            echo "⚠️  Intento $i fallido, reintentando en 10s..."
+            sleep 10
+          done
+          echo "❌ No se pudo ejecutar migrate tras 6 intentos"
+          exit 1
