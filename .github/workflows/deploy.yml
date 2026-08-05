@@ -113,7 +113,9 @@ jobs:
       - name: Run Django migrations
         run: |
           POD=$(kubectl get pod -n jv-web -l app=django-app \
+            --field-selector=status.phase=Running \
             -o jsonpath='{.items[0].metadata.name}')
           echo "Ejecutando migraciones en pod: $POD"
+          kubectl wait --for=condition=Ready pod/"$POD" -n jv-web --timeout=60s
           kubectl exec -n jv-web "$POD" -- python manage.py migrate --noinput
           echo "✅ Migraciones completadas"
