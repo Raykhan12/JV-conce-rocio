@@ -8,12 +8,12 @@ from .forms import CertificadoForm, DenunciaForm, IngresoForm
 
 
 def inicio(request):
-    noticias_recientes = Noticia.objects.filter(publicada=True)[:3]
+    noticias_recientes = Noticia.objects.filter(publicada=True).prefetch_related('imagenes')[:3]
     return render(request, 'publico/inicio.html', {'noticias': noticias_recientes})
 
 
 def noticias(request):
-    todas = Noticia.objects.filter(publicada=True)
+    todas = Noticia.objects.filter(publicada=True).prefetch_related('imagenes')
     return render(request, 'publico/noticias.html', {'noticias': todas})
 
 

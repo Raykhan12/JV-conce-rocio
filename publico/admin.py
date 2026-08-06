@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Noticia
+from .models import Noticia, NoticiaImagen
+
+
+class NoticiaImagenInline(admin.TabularInline):
+    model = NoticiaImagen
+    extra = 1
 
 
 @admin.register(Noticia)
@@ -9,3 +14,4 @@ class NoticiaAdmin(admin.ModelAdmin):
     list_editable = ('publicada',)
     search_fields = ('titulo', 'contenido')
     readonly_fields = ('creado_en',)
+    inlines = [NoticiaImagenInline]

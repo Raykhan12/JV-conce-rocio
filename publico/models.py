@@ -15,3 +15,14 @@ class Noticia(models.Model):
 
     def __str__(self):
         return self.titulo
+
+
+class NoticiaImagen(models.Model):
+    noticia = models.ForeignKey(Noticia, on_delete=models.CASCADE, related_name='imagenes')
+    imagen  = models.ImageField('Imagen', upload_to='noticias/')
+    orden   = models.PositiveSmallIntegerField('Orden', default=0)
+
+    class Meta:
+        ordering            = ['orden', 'pk']
+        verbose_name        = 'Imagen'
+        verbose_name_plural = 'Imágenes'
