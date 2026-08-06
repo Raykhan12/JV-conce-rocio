@@ -79,6 +79,13 @@ def detalle_certificado(request, pk):
         cert.notas_internas  = request.POST.get('notas_internas', '')
         asignado_id          = request.POST.get('asignado_a', '')
         cert.asignado_a_id   = int(asignado_id) if asignado_id else None
+        valor = request.POST.get('valor_cobrado', '').strip()
+        cert.valor_cobrado   = int(valor) if valor else None
+        cert.num_recibo      = request.POST.get('num_recibo', '').strip()
+        fp = request.POST.get('fecha_pago', '').strip()
+        cert.fecha_pago      = fp if fp else None
+        fe = request.POST.get('fecha_entrega', '').strip()
+        cert.fecha_entrega   = fe if fe else None
         cert.save()
         messages.success(request, 'Solicitud actualizada correctamente.')
         return redirect('detalle_certificado', pk=pk)

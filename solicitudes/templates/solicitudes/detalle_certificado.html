@@ -116,9 +116,37 @@
 
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1.5">Notas internas</label>
-          <textarea name="notas_internas" rows="4"
+          <textarea name="notas_internas" rows="3"
                     class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition resize-none placeholder-gray-300"
                     placeholder="Observaciones solo visibles para la directiva…">{{ cert.notas_internas }}</textarea>
+        </div>
+
+        <hr class="border-gray-100">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Pago y Entrega</p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Valor cobrado ($)</label>
+            <input type="number" name="valor_cobrado" value="{{ cert.valor_cobrado|default:'' }}"
+                   class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition"
+                   placeholder="1000">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">N° de recibo</label>
+            <input type="text" name="num_recibo" value="{{ cert.num_recibo }}"
+                   class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition"
+                   placeholder="2580">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Fecha de pago</label>
+            <input type="date" name="fecha_pago" value="{{ cert.fecha_pago|date:'Y-m-d'|default:'' }}"
+                   class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1.5">Fecha de entrega</label>
+            <input type="date" name="fecha_entrega" value="{{ cert.fecha_entrega|date:'Y-m-d'|default:'' }}"
+                   class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition">
+          </div>
         </div>
       </div>
 
