@@ -72,6 +72,18 @@
       {% endif %}
     </div>
 
+    {% if cert.valor_cobrado or cert.num_recibo or cert.fecha_pago or cert.fecha_entrega %}
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">Pago y Entrega</h2>
+      <dl class="grid sm:grid-cols-2 gap-4">
+        {% if cert.valor_cobrado %}{% include "solicitudes/_dl_item.html" with label="Valor cobrado" value=cert.valor_cobrado %}{% endif %}
+        {% if cert.num_recibo %}{% include "solicitudes/_dl_item.html" with label="N° de recibo" value=cert.num_recibo %}{% endif %}
+        {% if cert.fecha_pago %}{% include "solicitudes/_dl_item.html" with label="Fecha de pago" value=cert.fecha_pago %}{% endif %}
+        {% if cert.fecha_entrega %}{% include "solicitudes/_dl_item.html" with label="Fecha de entrega" value=cert.fecha_entrega %}{% endif %}
+      </dl>
+    </div>
+    {% endif %}
+
   </div>
 
   <!-- Right: gestión -->

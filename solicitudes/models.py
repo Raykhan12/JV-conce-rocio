@@ -67,6 +67,13 @@ class SolicitudCertificado(models.Model):
         related_name='certificados_asignados', verbose_name='Asignado a',
     )
     notas_internas = models.TextField('Notas internas', blank=True)
+
+    # Seguimiento de pago y entrega
+    valor_cobrado = models.PositiveIntegerField('Valor cobrado ($)', null=True, blank=True)
+    num_recibo    = models.CharField('N° de recibo', max_length=20, blank=True)
+    fecha_pago    = models.DateField('Fecha de pago', null=True, blank=True)
+    fecha_entrega = models.DateField('Fecha de entrega', null=True, blank=True)
+
     creado_en      = models.DateTimeField(auto_now_add=True)
     actualizado    = models.DateTimeField(auto_now=True)
 
