@@ -134,3 +134,12 @@ jobs:
           done
           echo "❌ No se pudo ejecutar migrate tras 6 intentos"
           exit 1
+
+      - name: Copy news images to media volume
+        run: |
+          POD=$(kubectl get pod -n jv-web -l app=django-app \
+            --field-selector=status.phase=Running \
+            -o jsonpath='{.items[0].metadata.name}')
+          echo "Copiando imágenes de noticias al PVC en pod: $POD"
+          kubectl exec -n jv-web "$POD" -- sh -c \
+            "mkdir -p /app/media/noticias && cp -n /app/static/img/noticia*.jpeg /app/media/noticias/ && echo '✅ Imágenes copiadas'"
