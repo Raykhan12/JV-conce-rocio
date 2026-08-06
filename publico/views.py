@@ -17,6 +17,12 @@ def noticias(request):
     return render(request, 'publico/noticias.html', {'noticias': todas})
 
 
+def noticia_detalle(request, pk):
+    from django.shortcuts import get_object_or_404
+    noticia = get_object_or_404(Noticia.objects.prefetch_related('imagenes'), pk=pk, publicada=True)
+    return render(request, 'publico/noticia_detalle.html', {'noticia': noticia})
+
+
 def formularios(request):
     return render(request, 'publico/formularios.html')
 
