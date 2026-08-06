@@ -4,18 +4,18 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.shortcuts import render, get_object_or_404, redirect
 
-from .models import SolicitudCertificado, DenunciaVecinal, ESTADO_CHOICES
+from .models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso, ESTADO_CHOICES
 
 
 def _stats():
     def cnt(model, estado):
         return model.objects.filter(estado=estado).count()
     return {
-        'total':      SolicitudCertificado.objects.count() + DenunciaVecinal.objects.count(),
-        'PENDIENTE':  cnt(SolicitudCertificado, 'PENDIENTE')  + cnt(DenunciaVecinal, 'PENDIENTE'),
-        'EN_PROCESO': cnt(SolicitudCertificado, 'EN_PROCESO') + cnt(DenunciaVecinal, 'EN_PROCESO'),
-        'COMPLETADO': cnt(SolicitudCertificado, 'COMPLETADO') + cnt(DenunciaVecinal, 'COMPLETADO'),
-        'RECHAZADO':  cnt(SolicitudCertificado, 'RECHAZADO')  + cnt(DenunciaVecinal, 'RECHAZADO'),
+        'total':      SolicitudCertificado.objects.count() + DenunciaVecinal.objects.count() + SolicitudIngreso.objects.count(),
+        'PENDIENTE':  cnt(SolicitudCertificado, 'PENDIENTE')  + cnt(DenunciaVecinal, 'PENDIENTE')  + cnt(SolicitudIngreso, 'PENDIENTE'),
+        'EN_PROCESO': cnt(SolicitudCertificado, 'EN_PROCESO') + cnt(DenunciaVecinal, 'EN_PROCESO') + cnt(SolicitudIngreso, 'EN_PROCESO'),
+        'COMPLETADO': cnt(SolicitudCertificado, 'COMPLETADO') + cnt(DenunciaVecinal, 'COMPLETADO') + cnt(SolicitudIngreso, 'COMPLETADO'),
+        'RECHAZADO':  cnt(SolicitudCertificado, 'RECHAZADO')  + cnt(DenunciaVecinal, 'RECHAZADO')  + cnt(SolicitudIngreso, 'RECHAZADO'),
     }
 
 
@@ -50,16 +50,19 @@ def panel_logout(request):
 def dashboard(request):
     estado_filter = request.GET.get('estado', '')
 
-    certs    = SolicitudCertificado.objects.select_related('asignado_a').order_by('-creado_en')
+    certs     = SolicitudCertificado.objects.select_related('asignado_a').order_by('-creado_en')
     denuncias = DenunciaVecinal.objects.select_related('asignado_a').order_by('-creado_en')
+    ingresos  = SolicitudIngreso.objects.select_related('asignado_a').order_by('-creado_en')
 
     if estado_filter:
         certs     = certs.filter(estado=estado_filter)
         denuncias = denuncias.filter(estado=estado_filter)
+        ingresos  = ingresos.filter(estado=estado_filter)
 
     return render(request, 'solicitudes/dashboard.html', {
         'certs':         certs,
         'denuncias':     denuncias,
+        'ingresos':      ingresos,
         'estado_filter': estado_filter,
         'stats':         _stats(),
         'estados':       ESTADO_CHOICES,
@@ -103,6 +106,27 @@ def detalle_denuncia(request, pk):
 
     return render(request, 'solicitudes/detalle_denuncia.html', {
         'denuncia': denuncia,
+        'usuarios': usuarios,
+        'estados':  ESTADO_CHOICES,
+    })
+
+
+@login_required
+def detalle_ingreso(request, pk):
+    ingreso  = get_object_or_404(SolicitudIngreso, pk=pk)
+    usuarios = User.objects.filter(is_staff=True).order_by('first_name', 'username')
+
+    if request.method == 'POST':
+        ingreso.estado         = request.POST.get('estado', ingreso.estado)
+        ingreso.notas_internas = request.POST.get('notas_internas', '')
+        asignado_id            = request.POST.get('asignado_a', '')
+        ingreso.asignado_a_id  = int(asignado_id) if asignado_id else None
+        ingreso.save()
+        messages.success(request, 'Solicitud actualizada correctamente.')
+        return redirect('detalle_ingreso', pk=pk)
+
+    return render(request, 'solicitudes/detalle_ingreso.html', {
+        'ingreso':  ingreso,
         'usuarios': usuarios,
         'estados':  ESTADO_CHOICES,
     })

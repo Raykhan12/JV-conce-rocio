@@ -74,6 +74,11 @@
       🚨 Denuncias
       <span class="ml-1.5 bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">{{ denuncias|length }}</span>
     </button>
+    <button onclick="showTab('ingresos')" id="tab-ingresos"
+            class="tab-btn px-4 py-2.5 text-sm font-semibold rounded-t-lg border-b-2 transition-colors">
+      🏘 Afiliaciones
+      <span class="ml-1.5 bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">{{ ingresos|length }}</span>
+    </button>
   </div>
 
   <!-- Certificados table -->
@@ -227,6 +232,80 @@
     <div class="py-16 text-center">
       <span class="text-4xl block mb-3">📭</span>
       <p class="text-gray-500 font-medium">No hay denuncias con este filtro.</p>
+      {% if estado_filter %}<a href="?" class="text-xs text-green-700 hover:underline mt-1 block">Ver todas</a>{% endif %}
+    </div>
+    {% endif %}
+  </div><!-- end denuncias panel -->
+
+  <!-- Afiliaciones table -->
+  <div id="panel-ingresos" class="tab-panel hidden">
+    {% if ingresos %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100 bg-gray-50/60">
+            <th class="text-left px-5 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Solicitante</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Villa</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Condición</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Estado</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Asignado</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Fecha</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for i in ingresos %}
+          <tr class="hover:bg-gray-50/80 transition-colors group">
+            <td class="px-5 py-3.5">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold text-xs shrink-0">
+                  {{ i.nombre|first|upper }}
+                </div>
+                <div class="min-w-0">
+                  <p class="font-semibold text-gray-900 truncate">{{ i.nombre }}</p>
+                  <p class="text-xs text-gray-400">{{ i.rut }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3.5 hidden md:table-cell">
+              <span class="text-gray-600 text-xs">{{ i.get_villa_display }}</span>
+            </td>
+            <td class="px-4 py-3.5 hidden lg:table-cell">
+              <span class="text-gray-500 text-xs">{{ i.get_condicion_display }}</span>
+            </td>
+            <td class="px-4 py-3.5">
+              {% include "solicitudes/_estado_badge.html" with estado=i.estado %}
+            </td>
+            <td class="px-4 py-3.5 hidden md:table-cell">
+              {% if i.asignado_a %}
+                <div class="flex items-center gap-1.5">
+                  <div class="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-[10px]">
+                    {{ i.asignado_a.username|first|upper }}
+                  </div>
+                  <span class="text-xs text-gray-600">{{ i.asignado_a.get_full_name|default:i.asignado_a.username }}</span>
+                </div>
+              {% else %}
+                <span class="text-xs text-gray-300 italic">Sin asignar</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3.5 hidden sm:table-cell">
+              <span class="text-xs text-gray-400">{{ i.creado_en|date:"d/m/Y" }}</span>
+            </td>
+            <td class="px-4 py-3.5 text-right">
+              <a href="{% url 'detalle_ingreso' i.pk %}"
+                 class="invisible group-hover:visible inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition">
+                Ver →
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="py-16 text-center">
+      <span class="text-4xl block mb-3">📭</span>
+      <p class="text-gray-500 font-medium">No hay solicitudes de afiliación con este filtro.</p>
       {% if estado_filter %}<a href="?" class="text-xs text-green-700 hover:underline mt-1 block">Ver todas</a>{% endif %}
     </div>
     {% endif %}

@@ -7,4 +7,5 @@ urlpatterns = [
     path('panel/salir/',                  views.panel_logout,        name='panel_logout'),
     path('panel/certificado/<int:pk>/',   views.detalle_certificado, name='detalle_certificado'),
     path('panel/denuncia/<int:pk>/',      views.detalle_denuncia,    name='detalle_denuncia'),
+    path('panel/ingreso/<int:pk>/',       views.detalle_ingreso,     name='detalle_ingreso'),
 ]
