@@ -99,7 +99,9 @@
       ⚠️ Si la situación es una <strong>emergencia</strong>, llame a Carabineros al <strong>133</strong> o a Seguridad Municipal al <strong>1404</strong>.
     </div>
 
-    <button type="submit" class="w-full bg-green-700 hover:bg-green-800 active:bg-green-900 text-white font-semibold py-3.5 rounded-xl transition shadow-sm text-sm">
+    <button type="submit" id="btn-submit"
+      onclick="this.disabled=true;this.textContent='Enviando…';this.closest('form').submit();"
+      class="w-full bg-green-700 hover:bg-green-800 active:bg-green-900 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition shadow-sm text-sm">
       Enviar reporte
     </button>
   </form>
