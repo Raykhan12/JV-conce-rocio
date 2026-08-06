@@ -112,14 +112,19 @@ jobs:
 
       - name: Run Django migrations
         run: |
-          POD=$(kubectl get pod -n jv-web -l app=django-app \
-            --field-selector=status.phase=Running \
-            -o jsonpath='{.items[0].metadata.name}')
-          echo "Ejecutando migraciones en pod: $POD"
-          kubectl wait --for=condition=Ready pod/"$POD" -n jv-web --timeout=60s
-
-          # Reintentar hasta 6 veces (containerd puede tardar en registrar el proceso)
+          # Re-consultar el pod en cada intento para tolerar rolling updates
           for i in $(seq 1 6); do
+            POD=$(kubectl get pod -n jv-web -l app=django-app \
+              --field-selector=status.phase=Running \
+              -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+
+            if [ -z "$POD" ]; then
+              echo "⚠️  Intento $i: ningún pod Running encontrado, reintentando en 10s..."
+              sleep 10
+              continue
+            fi
+
+            echo "Ejecutando migraciones en pod: $POD"
             if kubectl exec -n jv-web "$POD" -- python manage.py migrate --noinput; then
               echo "✅ Migraciones completadas"
               exit 0
