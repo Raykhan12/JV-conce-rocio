@@ -15,6 +15,7 @@
         <div class="flex items-center gap-2">
           <h1 class="text-xl font-extrabold text-gray-900">Certificado de Residencia</h1>
           <span class="text-gray-300 text-sm">#{{ cert.pk }}</span>
+          <span class="ml-1 text-xs font-mono font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-lg">{{ cert.numero }}</span>
         </div>
         <p class="text-sm text-gray-400 mt-0.5">Recibido el {{ cert.creado_en|date:"d \d\e F \d\e Y" }} a las {{ cert.creado_en|time:"H:i" }} hrs</p>
       </div>

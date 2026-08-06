@@ -1,5 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
+
+
+def _gen_numero(model_class, prefix):
+    year = timezone.now().year
+    prefix_year = f'{prefix}-{year}-'
+    nums = [
+        int(n.split('-')[-1])
+        for n in model_class.objects.filter(numero__startswith=prefix_year)
+                                    .values_list('numero', flat=True)
+        if n and n.split('-')[-1].isdigit()
+    ]
+    return f'{prefix_year}{str(max(nums, default=0) + 1).zfill(3)}'
 
 ESTADO_CHOICES = [
     ('PENDIENTE',  'Pendiente'),
@@ -47,6 +60,7 @@ class SolicitudCertificado(models.Model):
     autorizado = models.BooleanField('Autoriza uso de datos personales', default=False)
 
     # Gestión interna
+    numero         = models.CharField('N° Solicitud', max_length=20, unique=True, blank=True)
     estado         = models.CharField('Estado', max_length=15, choices=ESTADO_CHOICES, default='PENDIENTE')
     asignado_a     = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
@@ -60,6 +74,11 @@ class SolicitudCertificado(models.Model):
         verbose_name        = 'Solicitud de Certificado'
         verbose_name_plural = 'Solicitudes de Certificado'
         ordering            = ['-creado_en']
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            self.numero = _gen_numero(SolicitudCertificado, 'CR')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'Certificado — {self.nombre} [{self.get_estado_display()}]'
@@ -103,6 +122,7 @@ class SolicitudIngreso(models.Model):
     autorizado = models.BooleanField('Autoriza uso de datos personales', default=False)
 
     # Gestión interna
+    numero         = models.CharField('N° Solicitud', max_length=20, unique=True, blank=True)
     estado         = models.CharField('Estado', max_length=15, choices=ESTADO_CHOICES, default='PENDIENTE')
     asignado_a     = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
@@ -116,6 +136,11 @@ class SolicitudIngreso(models.Model):
         verbose_name        = 'Solicitud de Ingreso'
         verbose_name_plural = 'Solicitudes de Ingreso'
         ordering            = ['-creado_en']
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            self.numero = _gen_numero(SolicitudIngreso, 'SI')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'Ingreso — {self.nombre} ({self.get_villa_display()}) [{self.get_estado_display()}]'
@@ -169,6 +194,7 @@ class DenunciaVecinal(models.Model):
     notas_adicionales = models.TextField('Notas adicionales', blank=True)
 
     # Gestión interna
+    numero         = models.CharField('N° Denuncia', max_length=20, unique=True, blank=True)
     estado         = models.CharField('Estado', max_length=15, choices=ESTADO_CHOICES, default='PENDIENTE')
     asignado_a     = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL,
@@ -182,6 +208,11 @@ class DenunciaVecinal(models.Model):
         verbose_name        = 'Denuncia Vecinal'
         verbose_name_plural = 'Denuncias Vecinales'
         ordering            = ['-creado_en']
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            self.numero = _gen_numero(DenunciaVecinal, 'DV')
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'Denuncia [{self.get_urgencia_display()}] — {self.nombre} [{self.get_estado_display()}]'
