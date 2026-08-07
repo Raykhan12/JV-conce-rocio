@@ -108,7 +108,7 @@
                 </div>
                 <div class="min-w-0">
                   <p class="font-semibold text-gray-900 truncate">{{ c.nombre }}</p>
-                  <p class="text-xs text-gray-400">{{ c.rut }} &middot; <span class="font-mono text-green-700">{{ c.numero }}</span></p>
+                  <p class="text-xs text-gray-400">{{ c.rut }} &middot; <span class="font-mono text-green-700">{{ c.numero }}</span>{% if c.boleta_servicio %} &middot; <span class="text-blue-600" title="Tiene boleta adjunta">📎</span>{% endif %}</p>
                 </div>
               </div>
             </td>
