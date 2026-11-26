@@ -40,6 +40,9 @@
         <a href="{% url 'noticias' %}" class="nav-link"{% if request.resolver_match.url_name == 'noticias' or request.resolver_match.url_name == 'noticia_detalle' %} aria-current="page"{% endif %}>Noticias</a>
         <a href="{% url 'formularios' %}" class="nav-link"{% if request.resolver_match.url_name == 'formularios' or request.resolver_match.url_name == 'certificado' or request.resolver_match.url_name == 'denuncia' or request.resolver_match.url_name == 'ingreso' %} aria-current="page"{% endif %}>Trámites</a>
         <a href="{% url 'estatutos' %}" class="nav-link"{% if request.resolver_match.url_name == 'estatutos' %} aria-current="page"{% endif %}>Estatutos</a>
+        {% if user.is_authenticated %}
+          <a href="{% url 'payments:checkout' %}" class="nav-link">Mis cuotas</a>
+        {% endif %}
         {% if user.is_authenticated and user.is_staff %}
           <a href="{% url 'dashboard' %}" class="nav-cta">Panel de gestión</a>
         {% else %}
@@ -76,6 +79,7 @@
           <li><a href="{% url 'certificado' %}">Certificado de residencia</a></li>
           <li><a href="{% url 'denuncia' %}">Reportar una problemática</a></li>
           <li><a href="{% url 'ingreso' %}">Solicitud de ingreso</a></li>
+          <li><a href="{% url 'payments:checkout' %}">Pago de cuotas</a></li>
           <li><a href="{% url 'noticias' %}">Noticias de la villa</a></li>
         </ul>
       </div>

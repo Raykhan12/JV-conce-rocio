@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'publico',
     'solicitudes',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -109,6 +110,12 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'JJVV Villas Concepción-El Rocío <jjvv.villasconcerocio@gmail.com>')
 JUNTA_EMAIL         = os.environ.get('JUNTA_EMAIL', 'jjvv.villasconcerocio@gmail.com')
 SITE_URL            = os.environ.get('SITE_URL', 'http://localhost:8000')
+FLOW_API_KEY        = os.environ.get('FLOW_API_KEY', '')
+FLOW_SECRET_KEY     = os.environ.get('FLOW_SECRET_KEY', '')
+FLOW_API_URL        = (os.environ.get('FLOW_API_URL') or 'https://sandbox.flow.cl/api').rstrip('/')
+FLOW_PAYMENT_TIMEOUT = int(os.environ.get('FLOW_PAYMENT_TIMEOUT', '1800'))
+FLOW_CONFIRMATION_URL = os.environ.get('FLOW_CONFIRMATION_URL', f'{SITE_URL}/webhooks/flow/')
+FLOW_RETURN_URL       = os.environ.get('FLOW_RETURN_URL', f'{SITE_URL}/payments/flow/return/')
 
 # ─── Seguridad en producción (solo cuando DEBUG=False) ───────────────────────
 if not DEBUG:
