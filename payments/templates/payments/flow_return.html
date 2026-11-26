@@ -1,0 +1,30 @@
+{% extends "publico/base.html" %}
+{% block title %}Resultado del pago — JJVV{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+  <div class="site-container page-hero-inner">
+    <span class="page-kicker">Pago en línea</span>
+    <h1>{% if state == 'success' %}Pago confirmado{% elif state == 'failed' %}Pago no completado{% else %}Pago en proceso{% endif %}</h1>
+    <p>{{ detail }}</p>
+  </div>
+</section>
+<section class="form-page">
+  <div class="site-container form-shell">
+    <div class="form-panel text-center py-12">
+      {% if state == 'success' %}
+        <div class="text-5xl" aria-hidden="true">✓</div>
+        <h2 class="mt-5 text-2xl font-extrabold text-[#17332b]">Gracias por tu pago</h2>
+      {% elif state == 'failed' %}
+        <div class="text-5xl" aria-hidden="true">!</div>
+        <h2 class="mt-5 text-2xl font-extrabold text-[#17332b]">No se confirmó el cobro</h2>
+      {% else %}
+        <div class="text-5xl" aria-hidden="true">…</div>
+        <h2 class="mt-5 text-2xl font-extrabold text-[#17332b]">Estamos verificando el pago</h2>
+      {% endif %}
+      <p class="mt-3 text-sm leading-6 text-[#52665f]">La confirmación definitiva proviene del webhook seguro de Flow.</p>
+      <a href="{% url 'inicio' %}" class="btn btn-primary mt-7">Volver al inicio</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

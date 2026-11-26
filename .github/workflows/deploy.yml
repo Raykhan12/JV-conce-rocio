@@ -82,6 +82,9 @@ jobs:
             --from-literal=email-port="587" \
             --from-literal=email-user="jjvv.villasconcerocio@gmail.com" \
             --from-literal=email-password="${{ secrets.EMAIL_HOST_PASSWORD }}" \
+            --from-literal=flow-api-key="${{ secrets.FLOW_API_KEY }}" \
+            --from-literal=flow-secret-key="${{ secrets.FLOW_SECRET_KEY }}" \
+            --from-literal=flow-api-url="${{ secrets.FLOW_API_URL }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply ConfigMap and PVCs
