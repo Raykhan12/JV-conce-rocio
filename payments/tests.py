@@ -427,6 +427,13 @@ class CheckoutViewTests(TestCase):
         self.assertContains(detail, "Pagar una parte")
         self.assertNotContains(detail, self.address.owner_email)
 
+        lookup = self.client.post(reverse("payments:checkout"), {"address": "los   aromos 10"})
+        self.assertRedirects(lookup, reverse("payments:checkout"))
+        detail = self.client.get(reverse("payments:checkout"))
+        self.assertContains(detail, "Los Aromos 10")
+        self.assertContains(detail, "Pagar una parte")
+        self.assertNotContains(detail, self.address.owner_email)
+
     def test_checkout_lists_only_authenticated_users_charges(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("payments:checkout"))

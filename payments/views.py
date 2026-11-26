@@ -1,5 +1,7 @@
 import hashlib
 import json
+import re
+import unicodedata
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -21,6 +23,12 @@ def _payload(request):
         except json.JSONDecodeError:
             return {}
     return {key: request.POST.get(key) for key in request.POST}
+
+
+def _address_key(value):
+    normalized = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode().lower()
+    normalized = re.sub(r"\b0+(\d+)\b", r"\1", normalized)
+    return "".join(character for character in normalized if character.isalnum())
 
 
 def _payment_error(request, message, status):
