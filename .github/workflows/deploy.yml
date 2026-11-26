@@ -22,16 +22,17 @@ jobs:
         env:
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
         run: |
-          if [ -n "${KUBE_CONFIG_DATA}" ]; then
-            echo "${KUBE_CONFIG_DATA}" | base64 -d > "$RUNNER_TEMP/kubeconfig"
-            echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
-            export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
-          elif [ -r "/home/ramon/.kube/config" ]; then
-            echo "KUBECONFIG=/home/ramon/.kube/config" >> $GITHUB_ENV
+          if [ -r "/home/ramon/.kube/config" ]; then
+            echo "KUBECONFIG=/home/ramon/.kube/config" >> "$GITHUB_ENV"
             export KUBECONFIG="/home/ramon/.kube/config"
           elif [ -r "/etc/rancher/k3s/k3s.yaml" ]; then
-            echo "KUBECONFIG=/etc/rancher/k3s/k3s.yaml" >> $GITHUB_ENV
+            echo "KUBECONFIG=/etc/rancher/k3s/k3s.yaml" >> "$GITHUB_ENV"
             export KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
+          elif [ -n "${KUBE_CONFIG_DATA}" ]; then
+            umask 077
+            echo "${KUBE_CONFIG_DATA}" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+            echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+            export KUBECONFIG="$RUNNER_TEMP/kubeconfig"
           else
             echo "No kubeconfig found"
             exit 1
