@@ -1,52 +1,39 @@
 {% extends "publico/base.html" %}
-{% block title %}Formularios — JJVV Villas Concepción-El Rocío{% endblock %}
+{% block title %}Trámites — JJVV Villas Concepción-El Rocío{% endblock %}
 
 {% block content %}
-<div class="bg-green-800 text-white">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-    <h1 class="text-3xl font-extrabold mb-1">Trámites en línea</h1>
-    <p class="text-green-200 text-sm">Seleccione el trámite que desea realizar</p>
+<section class="page-hero">
+  <div class="site-container page-hero-inner">
+    <span class="page-kicker">Servicios digitales</span>
+    <h1>Trámites de la comunidad</h1>
+    <p>Selecciona lo que necesitas. Las solicitudes llegan directamente a la directiva de la Junta de Vecinos.</p>
   </div>
-</div>
+</section>
 
-<div class="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-  <div class="grid sm:grid-cols-2 gap-6">
-    <a href="{% url 'certificado' %}" class="group bg-white rounded-2xl border-2 border-gray-100 p-8 hover:border-green-300 hover:shadow-xl transition-all duration-300">
-      <div class="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:bg-green-100 transition">📄</div>
-      <h2 class="text-xl font-bold text-gray-900 mb-3">Certificado de Residencia</h2>
-      <p class="text-gray-500 text-sm leading-relaxed mb-6">
-        Acredita tu domicilio en la villa. Útil para trámites personales, postulación a beneficios sociales, matrícula escolar y acreditación de domicilio.
-      </p>
-      <div class="flex items-center gap-2 text-green-700 font-semibold text-sm group-hover:gap-3 transition-all">
-        Completar solicitud <span>→</span>
-      </div>
-    </a>
+<section class="section">
+  <div class="site-container">
+    <div class="services-grid !max-w-[1020px]">
+      <a href="{% url 'certificado' %}" class="service-card">
+        <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3.5h7l4 4V20.5H7z" stroke-linejoin="round"/><path d="M14 3.5v4h4M10 12h5M10 15.5h5" stroke-linecap="round"/></svg></span>
+        <h3>Certificado de residencia</h3>
+        <p>Acredita tu domicilio para beneficios sociales, matrícula escolar, trámites institucionales y otras gestiones.</p>
+        <span class="service-link">Completar solicitud <svg class="arrow-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 10h12m-4-4 4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
 
-    <a href="{% url 'denuncia' %}" class="group bg-white rounded-2xl border-2 border-gray-100 p-8 hover:border-amber-300 hover:shadow-xl transition-all duration-300">
-      <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:bg-amber-100 transition">🚨</div>
-      <h2 class="text-xl font-bold text-gray-900 mb-3">Reportar Problemática Vecinal</h2>
-      <p class="text-gray-500 text-sm leading-relaxed mb-6">
-        Informa problemas de seguridad, infraestructura, medio ambiente, tránsito o convivencia. Tu reporte llega directo a la directiva.
-      </p>
-      <div class="flex items-center gap-2 text-amber-700 font-semibold text-sm group-hover:gap-3 transition-all">
-        Hacer reporte <span>→</span>
-      </div>
-    </a>
+      <a href="{% url 'denuncia' %}" class="service-card">
+        <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s7-3.3 7-10V5.7L12 3 5 5.7V11c0 6.7 7 10 7 10Z" stroke-linejoin="round"/><path d="M12 8v5M12 16.5h.01" stroke-linecap="round"/></svg></span>
+        <h3>Problemática vecinal</h3>
+        <p>Reporta temas de seguridad, tránsito, infraestructura, medio ambiente o convivencia en la villa.</p>
+        <span class="service-link">Hacer un reporte <svg class="arrow-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 10h12m-4-4 4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
 
-    <a href="{% url 'ingreso' %}" class="group bg-white rounded-2xl border-2 border-gray-100 p-8 hover:border-blue-300 hover:shadow-xl transition-all duration-300 sm:col-span-2">
-      <div class="flex items-start gap-6">
-        <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-4xl shrink-0 group-hover:bg-blue-100 transition">🏘</div>
-        <div class="flex-1">
-          <h2 class="text-xl font-bold text-gray-900 mb-3">Solicitud de Ingreso a la Junta de Vecinos</h2>
-          <p class="text-gray-500 text-sm leading-relaxed mb-6">
-            ¿Quieres ser parte de la Junta de Vecinos Villas Concepción-El Rocío? Completa tu solicitud en línea y participa activamente en las decisiones de tu comunidad.
-          </p>
-          <div class="flex items-center gap-2 text-blue-700 font-semibold text-sm group-hover:gap-3 transition-all">
-            Solicitar ingreso <span>→</span>
-          </div>
-        </div>
-      </div>
-    </a>
+      <a href="{% url 'ingreso' %}" class="service-card sm:col-span-2 !min-h-0">
+        <span class="service-icon !bg-[#e7ecff] !text-[#475da3]" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11.5 12 4l8 7.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 10.5V20h11v-9.5M9.5 20v-5h5v5" stroke-linejoin="round"/></svg></span>
+        <h3>Ingreso a la Junta de Vecinos</h3>
+        <p>Completa tu solicitud para incorporarte y participar activamente en las decisiones de la comunidad.</p>
+        <span class="service-link">Solicitar ingreso <svg class="arrow-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 10h12m-4-4 4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+    </div>
   </div>
-</div>
+</section>
 {% endblock %}
