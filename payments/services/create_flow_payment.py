@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
@@ -20,7 +21,13 @@ class CreateFlowPayment:
     def absolute_url(path):
         return urljoin(settings.SITE_URL.rstrip("/") + "/", path.lstrip("/"))
 
-    def call(self, *, address_id, charge_ids, email, name="", rut="", user=None):
+    def call(self, *, address_id, charge_ids, email, name="", rut="", user=None, payment_amount=None):
+        email = str(email or "").strip()
+        try:
+            validate_email(email)
+        except ValidationError as exc:
+            raise ValidationError("Ingresa un correo electrónico válido para recibir el comprobante.") from exc
+
         charge_ids = list(dict.fromkeys(int(value) for value in charge_ids if str(value).isdigit()))
         if not charge_ids:
             raise ValidationError("Debes seleccionar al menos un cargo.")
@@ -43,10 +50,15 @@ class CreateFlowPayment:
             if any(value <= 0 for value in remaining_by_id.values()):
                 raise ValidationError("Uno de los cargos seleccionados ya fue pagado.")
             total = sum(remaining_by_id.values())
+            amount = total if payment_amount in (None, "") else int(payment_amount)
+            if amount <= 0:
+                raise ValidationError("El monto a pagar debe ser mayor que cero.")
+            if amount > total:
+                raise ValidationError("El monto a pagar no puede superar la deuda seleccionada.")
             payment = Payment.objects.create(
                 address=address,
                 user=user,
-                amount=total,
+                amount=amount,
                 currency="CLP",
                 status=Payment.Status.PENDING,
                 source="online",
@@ -81,7 +93,7 @@ class CreateFlowPayment:
             return order["payment_url"], payment
 
 
-def create_flow_payment(address, charge_ids, payer_email, payer_name="", payer_rut=None, user=None):
+def create_flow_payment(address, charge_ids, payer_email, payer_name="", payer_rut=None, user=None, payment_amount=None):
     checkout_url, payment = CreateFlowPayment().call(
         address_id=address.pk if hasattr(address, "pk") else address,
         charge_ids=charge_ids,
@@ -89,5 +101,6 @@ def create_flow_payment(address, charge_ids, payer_email, payer_name="", payer_r
         name=payer_name,
         rut=payer_rut or "",
         user=user,
+        payment_amount=payment_amount,
     )
     return {"payment": payment, "payment_url": checkout_url}

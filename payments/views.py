@@ -1,12 +1,12 @@
 import hashlib
 import json
 
-from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.views.decorators.http import require_POST, require_http_methods
 
 from payments.models import Address, PaymentEvent
 from payments.services.create_flow_payment import CreateFlowPayment
@@ -23,14 +23,30 @@ def _payload(request):
     return {key: request.POST.get(key) for key in request.POST}
 
 
+def _payment_error(request, message, status):
+    if request.content_type == "application/json":
+        return JsonResponse({"ok": False, "error": message}, status=status)
+    messages.error(request, message)
+    return redirect("payments:checkout")
+
+
 @require_POST
-@login_required
 def create_flow_payment(request):
     data = _payload(request)
+    address_id = request.session.get("payment_address_id")
     try:
-        address = Address.objects.get(pk=int(data.get("address_id")), user=request.user, active=True)
+        address = Address.objects.get(pk=int(address_id), active=True)
     except (TypeError, ValueError, Address.DoesNotExist):
-        return JsonResponse({"ok": False, "error": "Dirección no encontrada."}, status=404)
+        owned_address_id = data.get("address_id")
+        address = None
+        if request.user.is_authenticated:
+            address = Address.objects.filter(pk=owned_address_id, user=request.user, active=True).first()
+        if address is None:
+            return _payment_error(request, "Busca primero tu dirección.", 403)
+
+    if str(data.get("address_id", "")) != str(address.pk):
+        return _payment_error(request, "La dirección seleccionada no coincide con la consulta.", 403)
+
     charge_ids = data.get("charge_ids") or request.POST.getlist("charge_ids")
     if isinstance(charge_ids, str):
         charge_ids = [value.strip() for value in charge_ids.split(",") if value.strip()]
@@ -41,18 +57,20 @@ def create_flow_payment(request):
             email=data.get("email", ""),
             name=data.get("name", ""),
             rut=data.get("rut", ""),
+            payment_amount=data.get("payment_amount"),
             user=request.user if request.user.is_authenticated else None,
         )
     except (TypeError, ValueError, KeyError) as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+        return _payment_error(request, str(exc), 400)
     except FlowAPIError:
-        return JsonResponse({"ok": False, "error": "No fue posible iniciar el pago con Flow."}, status=502)
+        return _payment_error(request, "No fue posible iniciar el pago con Flow.", 502)
     except FlowConfigurationError:
-        return JsonResponse({"ok": False, "error": "Pagos Flow no configurados."}, status=503)
+        return _payment_error(request, "Pagos Flow no configurados.", 503)
     except ValidationError as exc:
-        return JsonResponse({"ok": False, "error": exc.message if hasattr(exc, "message") else exc.messages[0]}, status=422)
-    except (Address.DoesNotExist,):
-        return JsonResponse({"ok": False, "error": "Dirección no encontrada."}, status=404)
+        message = exc.message if hasattr(exc, "message") else exc.messages[0]
+        return _payment_error(request, message, 422)
+    except Address.DoesNotExist:
+        return _payment_error(request, "Dirección no encontrada.", 404)
 
     if request.content_type != "application/json":
         return redirect(checkout_url)
@@ -68,23 +86,46 @@ def create_flow_payment(request):
     )
 
 
-@login_required
-@require_GET
+@require_http_methods(["GET", "POST"])
 def checkout(request):
-    addresses = Address.objects.filter(user=request.user, active=True).order_by("label")
-    address_id = request.GET.get("address")
-    address = addresses.filter(pk=address_id).first() if address_id else addresses.first()
+    lookup_error = ""
+    if request.GET.get("cambiar") == "1":
+        request.session.pop("payment_address_id", None)
+        return redirect("payments:checkout")
+    if request.method == "POST":
+        address_text = " ".join(request.POST.get("address", "").strip().split())
+        if not address_text:
+            lookup_error = "Ingresa la dirección completa de tu hogar."
+        else:
+            address = Address.objects.filter(label__iexact=address_text, active=True).first()
+            if address:
+                request.session["payment_address_id"] = address.pk
+                return redirect("payments:checkout")
+            lookup_error = "No encontramos una dirección activa con ese texto. Revísala e inténtalo nuevamente."
+
+    addresses = Address.objects.none()
+    if request.user.is_authenticated:
+        addresses = Address.objects.filter(user=request.user, active=True).order_by("label")
+        requested_address = request.GET.get("address")
+        if requested_address and addresses.filter(pk=requested_address).exists():
+            request.session["payment_address_id"] = int(requested_address)
+
+    address = None
+    session_address_id = request.session.get("payment_address_id")
+    if session_address_id:
+        address = Address.objects.filter(pk=session_address_id, active=True).first()
+    elif addresses:
+        address = addresses.first()
+        request.session["payment_address_id"] = address.pk
+
     charges = []
     if address:
-        charges = address.charges.filter(status__in=["pending", "partial"]).order_by("due_date", "pk")
+        charges = address.charges.filter(status__in=["pending", "partial", "overdue"]).order_by("due_date", "pk")
+
     return render(
         request,
         "payments/checkout.html",
-        {
-            "address": address,
-            "addresses": addresses,
-            "charges": charges,
-        },
+        {"address": address, "addresses": addresses, "charges": charges, "lookup_error": lookup_error},
     )
 
 

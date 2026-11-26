@@ -14,14 +14,22 @@
   <div class="site-container max-w-3xl">
     {% if not address %}
       <div class="form-panel text-center py-12">
-        <h2 class="text-xl font-extrabold text-[#17332b]">Todavía no hay una dirección asociada a tu cuenta</h2>
-        <p class="mt-3 text-sm text-[#52665f]">Contacta a la directiva para vincular tu usuario con tu hogar.</p>
+        <h2 class="text-2xl font-extrabold text-[#17332b]">Revisa las cuotas de tu hogar</h2>
+        <p class="mt-3 text-sm text-[#52665f]">Escribe tu dirección tal como aparece en los registros de la junta. No mostramos nombres ni correos.</p>
+        <form method="post" class="mx-auto mt-7 max-w-xl text-left">
+          {% csrf_token %}
+          <label for="address" class="field-label">Dirección de tu hogar</label>
+          <input id="address" name="address" type="text" required autocomplete="street-address" placeholder="Ej: Pasaje Central 123" class="w-full">
+          {% if lookup_error %}<p class="mt-2 text-sm font-semibold text-red-700" role="alert">{{ lookup_error }}</p>{% endif %}
+          <button type="submit" class="submit-btn mt-4">Consultar deudas</button>
+        </form>
       </div>
     {% elif not charges %}
       <div class="form-panel text-center py-12">
         <span class="news-empty-icon" aria-hidden="true">✓</span>
         <h2 class="text-2xl font-extrabold text-[#17332b]">¡Estás al día!</h2>
         <p class="mt-3 text-sm text-[#52665f]">No tienes cuotas pendientes en {{ address.label }}.</p>
+        <a href="?cambiar=1" class="submit-btn mt-6">Consultar otra dirección</a>
       </div>
     {% else %}
       {% if addresses|length > 1 %}
@@ -33,11 +41,14 @@
         </form>
       {% endif %}
 
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <span class="text-sm font-bold text-[#17332b]">Dirección consultada: {{ address.label }}</span>
+        <a href="?cambiar=1" class="text-xs font-extrabold text-[#2d6b56]">Cambiar dirección</a>
+      </div>
+
       <form method="post" action="{% url 'payments:flow_create' %}" class="grid gap-5" id="flow-checkout-form">
         {% csrf_token %}
         <input type="hidden" name="address_id" value="{{ address.pk }}">
-        <input type="hidden" name="email" value="{{ address.owner_email|default:request.user.email }}">
-        <input type="hidden" name="name" value="{{ address.owner_name|default:request.user.get_full_name }}">
 
         <div class="form-panel">
           <div class="mb-5 flex items-end justify-between gap-4">
@@ -62,6 +73,36 @@
           </div>
         </div>
 
+        <div class="form-panel grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="payer-name" class="field-label">Nombre del pagador</label>
+            <input id="payer-name" name="name" type="text" autocomplete="name" required value="{{ request.user.get_full_name }}">
+          </div>
+          <div>
+            <label for="payer-email" class="field-label">Correo para comprobante</label>
+            <input id="payer-email" name="email" type="email" autocomplete="email" required value="{% if request.user.is_authenticated %}{{ request.user.email }}{% endif %}">
+          </div>
+        </div>
+
+        <div class="form-panel grid gap-4">
+          <fieldset class="grid gap-3 sm:grid-cols-2">
+            <legend class="field-label">¿Cuánto deseas pagar?</legend>
+            <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#17332b]/10 bg-[#f7f5ef] p-4">
+              <input type="radio" name="payment_mode" value="full" checked>
+              <span><strong class="block text-sm text-[#17332b]">Deuda completa</strong><small class="text-xs text-[#62766e]">Todo lo seleccionado</small></span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#17332b]/10 bg-white p-4">
+              <input type="radio" name="payment_mode" value="partial">
+              <span><strong class="block text-sm text-[#17332b]">Pagar una parte</strong><small class="text-xs text-[#62766e]">Cualquier monto dentro del saldo</small></span>
+            </label>
+          </fieldset>
+          <div id="partial-amount-wrap" class="hidden">
+            <label for="payment-amount" class="field-label">Monto del abono (CLP)</label>
+            <input id="payment-amount" name="payment_amount" type="number" min="1" step="1" inputmode="numeric" placeholder="Ej: 5000">
+            <p class="mt-2 text-xs text-[#62766e]">El abono se aplicará primero a la cuota vencida más antigua de las seleccionadas.</p>
+          </div>
+        </div>
+
         <div class="flex flex-col gap-4 rounded-3xl bg-[#0d382d] p-6 text-white sm:flex-row sm:items-center sm:justify-between">
           <div>
             <span class="text-xs font-bold uppercase tracking-[.13em] text-white/55">Total seleccionado</span>
@@ -81,14 +122,27 @@
     const total = document.getElementById('flow-total');
     const submit = document.getElementById('flow-submit');
     const all = document.getElementById('select-all-charges');
+    const modes = [...form.querySelectorAll('input[name="payment_mode"]')];
+    const amountInput = document.getElementById('payment-amount');
+    const amountWrap = document.getElementById('partial-amount-wrap');
+    const selectedTotal = () => checks.filter(item => item.checked).reduce((sum, item) => sum + Number(item.dataset.amount), 0);
     const update = () => {
-      const value = checks.filter(item => item.checked).reduce((sum, item) => sum + Number(item.dataset.amount), 0);
-      total.textContent = '$' + new Intl.NumberFormat('es-CL').format(value);
-      submit.disabled = value === 0;
-      submit.classList.toggle('opacity-50', value === 0);
+      const value = selectedTotal();
+      const isPartial = modes.find(item => item.checked)?.value === 'partial';
+      const partialValue = Number(amountInput.value || 0);
+      amountWrap.classList.toggle('hidden', !isPartial);
+      amountInput.required = isPartial;
+      amountInput.max = String(value);
+      const valid = value > 0 && (!isPartial || (partialValue > 0 && partialValue <= value));
+      total.textContent = '$' + new Intl.NumberFormat('es-CL').format(isPartial && valid ? partialValue : value);
+      submit.disabled = !valid;
+      submit.classList.toggle('opacity-50', !valid);
+      if (isPartial) form.querySelector('input[name="payment_amount"]').value = partialValue || '';
       all.textContent = checks.every(item => item.checked) ? 'Deseleccionar todo' : 'Seleccionar todo';
     };
     checks.forEach(item => item.addEventListener('change', update));
+    modes.forEach(item => item.addEventListener('change', update));
+    amountInput.addEventListener('input', update);
     all.addEventListener('click', () => { const select = !checks.every(item => item.checked); checks.forEach(item => item.checked = select); update(); });
     form.addEventListener('submit', () => { submit.disabled = true; submit.textContent = 'Abriendo Flow…'; });
     update();

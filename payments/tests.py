@@ -135,6 +135,20 @@ class FlowPaymentTests(TestCase):
         self.assertEqual(self.two.status, Charge.Status.PAID)
         self.assertEqual(sum(payment.allocations.values_list("amount", flat=True)), 22500)
 
+    @override_settings(FLOW_API_KEY="api-test", FLOW_SECRET_KEY="secret-test")
+    def test_creates_partial_payment_for_selected_debt(self):
+        flow = FakeFlowClient()
+        _url, payment = CreateFlowPayment(flow).call(
+            address_id=self.address.pk,
+            charge_ids=[self.one.pk, self.two.pk],
+            email="vecino@example.cl",
+            payment_amount=4000,
+        )
+
+        self.assertEqual(payment.amount, 4000)
+        self.assertEqual(flow.created["amount"], 4000)
+        self.assertEqual(payment.metadata["charge_ids"], [self.one.pk, self.two.pk])
+
     def test_rejects_charge_from_another_address_or_already_paid(self):
         other = Address.objects.create(label="Pasaje Sur 55")
         other_charge = Charge.objects.create(
@@ -395,7 +409,23 @@ class CheckoutViewTests(TestCase):
 
     def test_checkout_requires_login(self):
         response = self.client.get(reverse("payments:checkout"))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+
+    def test_checkout_is_public(self):
+        response = self.client.get(reverse("payments:checkout"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_checkout_public_entry_point(self):
+        response = self.client.get(reverse("payments:checkout"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Revisa las cuotas de tu hogar")
+
+        lookup = self.client.post(reverse("payments:checkout"), {"address": "los   Aromos 10"})
+        self.assertRedirects(lookup, reverse("payments:checkout"))
+        detail = self.client.get(reverse("payments:checkout"))
+        self.assertContains(detail, "Los Aromos 10")
+        self.assertContains(detail, "Pagar una parte")
+        self.assertNotContains(detail, self.address.owner_email)
 
     def test_checkout_lists_only_authenticated_users_charges(self):
         self.client.force_login(self.user)
