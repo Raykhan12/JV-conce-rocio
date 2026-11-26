@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from payments.models import Address, PaymentEvent
 from payments.services.create_flow_payment import CreateFlowPayment
@@ -107,11 +107,14 @@ def flow_webhook(request):
         return JsonResponse({"ok": False, "error": "Missing token"}, status=401)
 
     try:
-        flow = FlowClient()
+        flow = FlowClient(timeout=10)
     except FlowConfigurationError:
         return JsonResponse({"ok": False, "error": "Flow no configurado"}, status=503)
 
-    if not flow.verify_webhook_signature(params):
+    # Flow Sandbox/Production confirmation callbacks may contain only `token`.
+    # A present `s` is still verified; token-only callbacks are authenticated by
+    # the processor's signed getStatus request against Flow.
+    if params.get("s") and not flow.verify_webhook_signature(params):
         fingerprint = hashlib.sha256(json.dumps(params, sort_keys=True).encode("utf-8")).hexdigest()
         PaymentEvent.objects.get_or_create(
             external_id=f"invalid:{fingerprint}",
@@ -131,15 +134,16 @@ def flow_webhook(request):
     return JsonResponse(result, status=200)
 
 
-@require_GET
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def flow_return(request):
-    token = request.GET.get("token", "")
+    token = str(request.GET.get("token") or request.POST.get("token") or "")
     state = "invalid"
     detail = "No se recibió un identificador de pago."
     payment_status = None
     if token:
         try:
-            status_payload = FlowClient().get_status(token)
+            status_payload = FlowClient(timeout=10).get_status(token)
             flow_status = int(status_payload.get("status", 0))
             if flow_status == 2:
                 state = "success"

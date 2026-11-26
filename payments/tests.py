@@ -232,6 +232,33 @@ class FlowWebhookViewTests(TestCase):
         self.assertEqual(event.payload["token"], "webhook-token")
 
     @override_settings(FLOW_API_KEY="api-test", FLOW_SECRET_KEY="test-secret")
+    @patch("payments.views.FlowClient.get_status", return_value={"status": 2, "flowOrder": 901})
+    def test_token_only_webhook_is_authorized_by_get_status(self, get_status):
+        response = self.client.post(
+            reverse("payments:flow_webhook"),
+            {"token": "webhook-token"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        get_status.assert_called_once_with("webhook-token")
+        self.assertEqual(PaymentAllocation.objects.filter(payment=self.payment).count(), 1)
+        self.assertTrue(PaymentEvent.objects.get(external_id="webhook-token:confirmation").processed)
+
+    @override_settings(FLOW_API_KEY="api-test", FLOW_SECRET_KEY="test-secret")
+    @patch("payments.views.FlowClient.get_status", return_value={"status": 2, "flowOrder": 901})
+    def test_flow_return_accepts_post_but_does_not_allocate_payment(self, get_status):
+        response = self.client.post(
+            reverse("payments:flow_return"),
+            {"token": "webhook-token"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        get_status.assert_called_once_with("webhook-token")
+        self.assertEqual(PaymentAllocation.objects.filter(payment=self.payment).count(), 0)
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.status, Payment.Status.PENDING)
+
+    @override_settings(FLOW_API_KEY="api-test", FLOW_SECRET_KEY="test-secret")
     @patch("payments.views.FlowClient.get_status", return_value={"status": 2, "flowOrder": 900})
     def test_valid_webhook_returns_200_in_under_15_seconds_and_is_idempotent(self, _get_status):
         payload = {"token": "webhook-token"}
