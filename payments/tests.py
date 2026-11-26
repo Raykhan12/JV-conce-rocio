@@ -398,7 +398,7 @@ class CheckoutViewTests(TestCase):
         from django.contrib.auth import get_user_model
 
         self.user = get_user_model().objects.create_user(username="vecino", password="secret", email="vecino@example.cl")
-        self.address = Address.objects.create(label="Los Aromos 10", user=self.user, owner_email=self.user.email)
+        self.address = Address.objects.create(label="Los Aromos 010 Villa Concepción", user=self.user, owner_email=self.user.email)
         self.charge = Charge.objects.create(
             address=self.address,
             period_year=2026,
@@ -420,24 +420,17 @@ class CheckoutViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Revisa las cuotas de tu hogar")
 
-        lookup = self.client.post(reverse("payments:checkout"), {"address": "los   Aromos 10"})
+        lookup = self.client.post(reverse("payments:checkout"), {"address": "los-aromos-10-villa concepcion"})
         self.assertRedirects(lookup, reverse("payments:checkout"))
         detail = self.client.get(reverse("payments:checkout"))
-        self.assertContains(detail, "Los Aromos 10")
-        self.assertContains(detail, "Pagar una parte")
-        self.assertNotContains(detail, self.address.owner_email)
-
-        lookup = self.client.post(reverse("payments:checkout"), {"address": "los   aromos 10"})
-        self.assertRedirects(lookup, reverse("payments:checkout"))
-        detail = self.client.get(reverse("payments:checkout"))
-        self.assertContains(detail, "Los Aromos 10")
-        self.assertContains(detail, "Pagar una parte")
+        self.assertContains(detail, "Los Aromos 010 Villa Concepción")
+        self.assertContains(detail, str(self.charge.remaining_amount))
         self.assertNotContains(detail, self.address.owner_email)
 
     def test_checkout_lists_only_authenticated_users_charges(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("payments:checkout"))
-        self.assertContains(response, "Los Aromos 10")
+        self.assertContains(response, "Los Aromos 010 Villa Concepción")
         self.assertContains(response, str(self.charge.remaining_amount))
 
     def test_paid_payment_cannot_be_deleted_but_pending_uses_soft_delete(self):

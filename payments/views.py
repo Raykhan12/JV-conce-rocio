@@ -105,11 +105,19 @@ def checkout(request):
         if not address_text:
             lookup_error = "Ingresa la dirección completa de tu hogar."
         else:
-            address = Address.objects.filter(label__iexact=address_text, active=True).first()
-            if address:
-                request.session["payment_address_id"] = address.pk
+            address_key = _address_key(address_text)
+            matches = [
+                item
+                for item in Address.objects.filter(active=True).only("pk", "label")
+                if _address_key(item.label) == address_key
+            ]
+            if len(matches) == 1:
+                request.session["payment_address_id"] = matches[0].pk
                 return redirect("payments:checkout")
-            lookup_error = "No encontramos una dirección activa con ese texto. Revísala e inténtalo nuevamente."
+            if len(matches) > 1:
+                lookup_error = "Hay más de un registro con esa dirección. Contacta a Tesorería para resolverlo."
+            else:
+                lookup_error = "No encontramos una dirección activa con ese texto. Revísala e inténtalo nuevamente."
 
     addresses = Address.objects.none()
     if request.user.is_authenticated:
