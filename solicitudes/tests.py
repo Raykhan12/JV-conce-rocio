@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from payments.models import Address, Charge, Payment
+from payments.models import Address, Charge, Payment, PaymentAllocation, PaymentEvent
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -29,6 +29,16 @@ class AccountingPanelTests(TestCase):
             status=Payment.Status.PAID,
             paid_at=timezone.now(),
         )
+        Payment.objects.create(
+            address=address,
+            amount=2500,
+            payer_email="pagador@example.cl",
+            status=Payment.Status.PAID,
+            paid_at=timezone.now(),
+            gateway="manual",
+            payment_method="cash",
+            source="historical_word",
+        )
 
     def test_accounting_requires_staff_panel_user(self):
         anonymous = self.client.get(reverse("contabilidad"))
@@ -43,7 +53,7 @@ class AccountingPanelTests(TestCase):
         staff = self.client.get(reverse("contabilidad"))
         self.assertEqual(staff.status_code, 200)
         self.assertContains(staff, "Pasaje Contable 55")
-        self.assertContains(staff, "7500")
+        self.assertContains(staff, "7.500")
 
     def test_accounting_csv_exports_all_payment_sources(self):
         self.client.force_login(self.staff)
@@ -53,5 +63,46 @@ class AccountingPanelTests(TestCase):
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
         body = response.content.decode("utf-8")
         self.assertIn("Cuota", body)
-        self.assertIn("Pago Flow", body)
         self.assertIn("Pasaje Contable 55", body)
+        self.assertIn("Pago cuotas", body)
+        self.assertIn("Flow", body)
+        self.assertIn("Efectivo", body)
+        self.assertIn("Pasaje Contable 55", body)
+
+    def test_staff_can_register_manual_payment_with_method(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse("registrar_pago_cuota"), {
+            "address_id": self.charge.address_id,
+            "amount": 3000,
+            "payment_date": timezone.localdate().isoformat(),
+            "payment_method": "bank_transfer",
+            "payer_name": "Vecino Prueba",
+            "reference": "DEP-123",
+            "note": "Pago en banco",
+        })
+
+        self.assertRedirects(response, reverse("contabilidad"))
+        self.charge.refresh_from_db()
+        self.assertEqual(self.charge.status, Charge.Status.PARTIAL)
+        self.assertEqual(self.charge.paid_amount, 5500)
+        payment = Payment.objects.get(source="manual_panel")
+        self.assertEqual(payment.amount, 3000)
+        self.assertEqual(payment.payment_method, "bank_transfer")
+        self.assertEqual(payment.gateway_payment_id, "DEP-123")
+        self.assertEqual(payment.metadata["payment_method_label"], "Transferencia bancaria")
+        self.assertEqual(PaymentAllocation.objects.get(payment=payment).amount, 3000)
+        self.assertTrue(PaymentEvent.objects.filter(payment=payment, event_type="manual.panel_payment").exists())
+
+    def test_manual_payment_cannot_exceed_pending_debt(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse("registrar_pago_cuota"), {
+            "address_id": self.charge.address_id,
+            "amount": 999999,
+            "payment_date": timezone.localdate().isoformat(),
+            "payment_method": "cash",
+        })
+
+        self.assertRedirects(response, reverse("contabilidad"))
+        self.assertFalse(Payment.objects.filter(source="manual_panel").exists())
+        self.charge.refresh_from_db()
+        self.assertEqual(self.charge.paid_amount, 2500)

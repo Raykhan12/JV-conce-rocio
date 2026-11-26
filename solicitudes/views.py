@@ -2,13 +2,28 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.db import transaction
 from django.db.models import Count, F, Sum
 from django.http import HttpResponse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from datetime import datetime
+from uuid import uuid4
 import csv
 
 from .models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso, ESTADO_CHOICES
-from payments.models import Charge, Payment
+from payments.models import Address, Charge, Payment, PaymentEvent
+
+PAYMENT_METHOD_LABELS = {
+    'cash': 'Efectivo',
+    'bank_transfer': 'Transferencia bancaria',
+    'deposit': 'Depósito',
+    'check': 'Cheque',
+    'other': 'Otro',
+    'flow': 'Flow',
+    'manual': 'Histórico presencial',
+}
 
 
 def _stats():
@@ -151,7 +166,8 @@ def contabilidad(request):
     invoiced = charge_totals['invoiced'] or 0
     paid = charge_totals['paid'] or 0
     pending = max(0, invoiced - paid)
-    paid_online = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
+    paid_online = Payment.all_objects.filter(status=Payment.Status.PAID, gateway='flow', deleted_at__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
+    paid_in_person = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).exclude(gateway='flow').aggregate(total=Sum('amount'))['total'] or 0
     certificate_income = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).aggregate(total=Sum('valor_cobrado'))['total'] or 0
 
     debt_by_address = (
@@ -163,17 +179,21 @@ def contabilidad(request):
     )
     recent_payments = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).select_related('address').order_by('-paid_at')[:30]
     recent_certificates = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago', '-creado_en')[:20]
+    payment_addresses = Address.objects.filter(active=True).order_by('label')
 
     return render(request, 'solicitudes/contabilidad.html', {
         'invoiced': invoiced,
         'paid': paid,
         'pending': pending,
         'paid_online': paid_online,
+        'paid_in_person': paid_in_person,
         'certificate_income': certificate_income,
         'debt_by_address': debt_by_address,
         'recent_payments': recent_payments,
         'recent_certificates': recent_certificates,
-        'charge_counts': active_charges.values('status').annotate(total=Sum(1)),
+        'payment_addresses': payment_addresses,
+        'payment_methods': list(PAYMENT_METHOD_LABELS.items())[:5],
+        'charge_counts': active_charges.values('status').annotate(total=Count('pk')),
     })
 
 
@@ -182,24 +202,122 @@ def contabilidad_export(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="contabilidad-jjvv.csv"'
     writer = csv.writer(response)
-    writer.writerow(['Tipo', 'Referencia', 'Dirección', 'Concepto', 'Fecha', 'Total CLP', 'Pagado CLP', 'Pendiente CLP', 'Estado', 'Correo'])
+    writer.writerow(['Tipo', 'Referencia', 'Dirección', 'Concepto', 'Fecha', 'Medio de pago', 'Comprobante', 'Total CLP', 'Pagado CLP', 'Pendiente CLP', 'Estado', 'Correo'])
 
     for charge in Charge.all_objects.select_related('address').order_by('address__label', 'period_year', 'period_month'):
         writer.writerow([
             'Cuota', charge.pk, charge.address.label, f'{charge.period_month:02d}/{charge.period_year}',
-            charge.due_date, charge.amount, charge.paid_amount, charge.remaining_amount, charge.status,
+            charge.due_date, '—', '—', charge.amount, charge.paid_amount, charge.remaining_amount, charge.status,
             charge.address.owner_email,
         ])
     for payment in Payment.all_objects.select_related('address').order_by('-created_at'):
         writer.writerow([
-            'Pago Flow', payment.pk, payment.address.label, payment.description or 'Pago en línea',
-            payment.paid_at or payment.created_at, payment.amount, payment.amount if payment.status == Payment.Status.PAID else 0,
-            0, payment.status, payment.payer_email,
+            'Pago cuotas', payment.pk, payment.address.label, payment.description or 'Pago cuotas',
+            payment.paid_at or payment.created_at,
+            payment.metadata.get('payment_method_label') or PAYMENT_METHOD_LABELS.get(payment.payment_method, payment.payment_method or 'No informado'),
+            payment.gateway_payment_id or '—', payment.amount,
+            payment.amount if payment.status == Payment.Status.PAID else 0, 0, payment.status, payment.payer_email,
         ])
     for certificate in SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago'):
         writer.writerow([
             'Certificado', certificate.pk, certificate.direccion, f'Certificado {certificate.numero}',
-            certificate.fecha_pago, certificate.valor_cobrado, certificate.valor_cobrado, 0, certificate.estado,
-            certificate.email,
+            certificate.fecha_pago, 'Certificado', certificate.num_recibo or '—', certificate.valor_cobrado,
+            certificate.valor_cobrado, 0, certificate.estado, certificate.email,
         ])
     return response
+
+
+@staff_member_required(login_url='/panel/ingresar/')
+@require_POST
+def registrar_pago_cuota(request):
+    address_id = request.POST.get('address_id')
+    method = request.POST.get('payment_method', 'cash')
+    allowed_methods = {'cash', 'bank_transfer', 'deposit', 'check', 'other'}
+    if method not in allowed_methods:
+        messages.error(request, 'Selecciona un medio de pago válido.')
+        return redirect('contabilidad')
+
+    try:
+        amount = int(request.POST.get('amount', ''))
+        payment_date = datetime.strptime(request.POST.get('payment_date', ''), '%Y-%m-%d').date()
+        if amount <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        messages.error(request, 'Ingresa un monto y una fecha de pago válidos.')
+        return redirect('contabilidad')
+
+    payer_name = request.POST.get('payer_name', '').strip()
+    reference = request.POST.get('reference', '').strip()
+    note = request.POST.get('note', '').strip()
+
+    try:
+        with transaction.atomic():
+            address = Address.objects.select_for_update().get(pk=address_id, active=True)
+            charges = list(
+                Charge.objects.select_for_update()
+                .filter(address=address, status__in=[Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE])
+                .order_by('due_date', 'pk')
+            )
+            debt = sum(charge.remaining_amount for charge in charges)
+            if not charges or debt <= 0:
+                raise ValueError('La dirección no tiene cuotas pendientes.')
+            if amount > debt:
+                raise ValueError(f'El monto no puede superar la deuda pendiente de ${debt:,}.'.replace(',', '.'))
+
+            paid_at = timezone.make_aware(
+                datetime.combine(payment_date, datetime.min.time()),
+                timezone.get_current_timezone(),
+            )
+            payment = Payment.objects.create(
+                address=address,
+                user=request.user,
+                amount=amount,
+                currency='CLP',
+                status=Payment.Status.PENDING,
+                source='manual_panel',
+                payment_method=method,
+                gateway='manual',
+                gateway_payment_id=reference[:120] or None,
+                payer_email=address.owner_email or '',
+                payer_name=payer_name or address.owner_name,
+                description=f'Pago manual de cuotas registrado desde el panel ({method})',
+                metadata={
+                    'charge_ids': [charge.pk for charge in charges],
+                    'payment_method_label': dict([
+                        ('cash', 'Efectivo'), ('bank_transfer', 'Transferencia bancaria'),
+                        ('deposit', 'Depósito'), ('check', 'Cheque'), ('other', 'Otro'),
+                    ])[method],
+                    'reference': reference,
+                    'note': note,
+                    'registered_by': request.user.get_username(),
+                    'payment_date': payment_date.isoformat(),
+                },
+                paid_at=paid_at,
+            )
+            payment.apply_to_charges([charge.pk for charge in charges])
+            payment.refresh_from_db()
+            payment.paid_at = paid_at
+            payment.save(update_fields=['paid_at', 'updated_at'])
+            PaymentEvent.objects.create(
+                payment=payment,
+                gateway='manual',
+                event_type='manual.panel_payment',
+                external_id=f'manual-panel-{uuid4().hex}',
+                payload={
+                    'method': method,
+                    'reference': reference,
+                    'note': note,
+                    'registered_by': request.user.get_username(),
+                },
+                processed=True,
+                processed_at=timezone.now(),
+            )
+    except Address.DoesNotExist:
+        messages.error(request, 'La dirección seleccionada no existe o no está activa.')
+        return redirect('contabilidad')
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('contabilidad')
+
+    messages.success(request, f'Pago de ${amount:,} registrado para {address.label}.'.replace(',', '.'))
+    return redirect('contabilidad')

@@ -1,4 +1,5 @@
 {% extends "solicitudes/panel_base.html" %}
+{% load clp %}
 {% block title %}Contabilidad — Panel JJVV{% endblock %}
 
 {% block panel_content %}
@@ -12,12 +13,58 @@
 </div>
 
 <div class="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-7">
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-gray-400">Facturado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-gray-900">${{ invoiced|floatformat:0 }}</p></div>
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-green-600">Pagado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-green-700">${{ paid|floatformat:0 }}</p></div>
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-amber-600">Deuda vigente</p><p class="mt-3 text-2xl font-extrabold text-amber-700">${{ pending|floatformat:0 }}</p></div>
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-blue-600">Recibido por Flow</p><p class="mt-3 text-2xl font-extrabold text-blue-700">${{ paid_online|floatformat:0 }}</p></div>
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-purple-600">Certificados</p><p class="mt-3 text-2xl font-extrabold text-purple-700">${{ certificate_income|floatformat:0 }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-gray-400">Facturado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-gray-900">${{ invoiced|clp }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-green-600">Pagado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-green-700">${{ paid|clp }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-amber-600">Deuda vigente</p><p class="mt-3 text-2xl font-extrabold text-amber-700">${{ pending|clp }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-blue-600">Recibido presencialmente</p><p class="mt-3 text-2xl font-extrabold text-blue-700">${{ paid_in_person|clp }}</p><p class="mt-1 text-[11px] text-gray-400">Efectivo, depósitos y otros medios registrados</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-purple-600">Recibido por Flow</p><p class="mt-3 text-2xl font-extrabold text-purple-700">${{ paid_online|clp }}</p></div>
 </div>
+
+<section class="mb-7 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+  <div class="mb-5">
+    <h2 class="font-extrabold text-gray-900">Registrar pago de cuota</h2>
+    <p class="text-xs text-gray-400">Para cobros en efectivo, depósito, transferencia, cheque u otro medio. Se aplica automáticamente desde la cuota más antigua.</p>
+  </div>
+  <form method="post" action="{% url 'registrar_pago_cuota' %}" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {% csrf_token %}
+    <div class="xl:col-span-2">
+      <label for="manual-address" class="mb-1.5 block text-xs font-bold text-gray-600">Dirección</label>
+      <select id="manual-address" name="address_id" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+        <option value="">Selecciona una dirección</option>
+        {% for address in payment_addresses %}<option value="{{ address.pk }}">{{ address.label }} — {{ address.owner_name|default:"Sin titular" }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="manual-amount" class="mb-1.5 block text-xs font-bold text-gray-600">Monto (CLP)</label>
+      <input id="manual-amount" name="amount" type="number" min="1" step="1" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Ej: 12000">
+    </div>
+    <div>
+      <label for="manual-date" class="mb-1.5 block text-xs font-bold text-gray-600">Fecha de pago</label>
+      <input id="manual-date" name="payment_date" type="date" required value="{% now 'Y-m-d' %}" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+    </div>
+    <div>
+      <label for="manual-method" class="mb-1.5 block text-xs font-bold text-gray-600">Medio de pago</label>
+      <select id="manual-method" name="payment_method" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+        {% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="manual-payer" class="mb-1.5 block text-xs font-bold text-gray-600">Pagador</label>
+      <input id="manual-payer" name="payer_name" type="text" maxlength="150" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Nombre opcional">
+    </div>
+    <div>
+      <label for="manual-reference" class="mb-1.5 block text-xs font-bold text-gray-600">N° recibo/comprobante</label>
+      <input id="manual-reference" name="reference" type="text" maxlength="120" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div>
+      <label for="manual-note" class="mb-1.5 block text-xs font-bold text-gray-600">Observación</label>
+      <input id="manual-note" name="note" type="text" maxlength="300" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div class="md:col-span-2 xl:col-span-4 flex justify-end">
+      <button type="submit" class="rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-800">Registrar y aplicar pago</button>
+    </div>
+  </form>
+</section>
 
 <div class="grid gap-6 xl:grid-cols-5">
   <section class="xl:col-span-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -30,7 +77,7 @@
         <thead><tr class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400"><th class="px-5 py-3">Dirección / titular</th><th class="px-4 py-3">Cuotas</th><th class="px-4 py-3 text-right">Saldo</th></tr></thead>
         <tbody class="divide-y divide-gray-50">
           {% for row in debt_by_address %}
-            <tr class="hover:bg-gray-50"><td class="px-5 py-3.5"><p class="font-semibold text-gray-900">{{ row.address__label }}</p><p class="text-xs text-gray-400">{{ row.address__owner_name|default:"Sin titular registrado" }}</p></td><td class="px-4 py-3.5 text-gray-500">{{ row.count }}</td><td class="px-4 py-3.5 text-right font-extrabold text-amber-700">${{ row.debt|floatformat:0 }}</td></tr>
+            <tr class="hover:bg-gray-50"><td class="px-5 py-3.5"><p class="font-semibold text-gray-900">{{ row.address__label }}</p><p class="text-xs text-gray-400">{{ row.address__owner_name|default:"Sin titular registrado" }}</p></td><td class="px-4 py-3.5 text-gray-500">{{ row.count }}</td><td class="px-4 py-3.5 text-right font-extrabold text-amber-700">${{ row.debt|clp }}</td></tr>
           {% empty %}
             <tr><td colspan="3" class="px-5 py-12 text-center text-gray-400">No existen deudas pendientes.</td></tr>
           {% endfor %}
@@ -53,11 +100,11 @@
   <div class="border-b border-gray-100 px-5 py-4"><h2 class="font-extrabold text-gray-900">Últimos pagos confirmados</h2></div>
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
-      <thead><tr class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400"><th class="px-5 py-3">Dirección</th><th class="px-4 py-3">Pagador</th><th class="px-4 py-3">Fecha</th><th class="px-4 py-3">Orden Flow</th><th class="px-4 py-3 text-right">Monto</th></tr></thead>
+      <thead><tr class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400"><th class="px-5 py-3">Dirección</th><th class="px-4 py-3">Pagador</th><th class="px-4 py-3">Fecha</th><th class="px-4 py-3">Medio</th><th class="px-4 py-3">Comprobante</th><th class="px-4 py-3 text-right">Monto</th></tr></thead>
       <tbody class="divide-y divide-gray-50">
         {% for payment in recent_payments %}
-          <tr class="hover:bg-gray-50"><td class="px-5 py-3.5 font-semibold text-gray-800">{{ payment.address.label }}</td><td class="px-4 py-3.5 text-gray-500">{{ payment.payer_name|default:payment.payer_email }}</td><td class="px-4 py-3.5 text-gray-500">{{ payment.paid_at|date:"d/m/Y H:i" }}</td><td class="px-4 py-3.5 font-mono text-xs text-gray-400">{{ payment.gateway_payment_id|default:"—" }}</td><td class="px-4 py-3.5 text-right font-extrabold text-green-700">${{ payment.amount|floatformat:0 }}</td></tr>
-        {% empty %}<tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No hay pagos confirmados.</td></tr>{% endfor %}
+          <tr class="hover:bg-gray-50"><td class="px-5 py-3.5 font-semibold text-gray-800">{{ payment.address.label }}</td><td class="px-4 py-3.5 text-gray-500">{{ payment.payer_name|default:payment.payer_email }}</td><td class="px-4 py-3.5 text-gray-500">{{ payment.paid_at|date:"d/m/Y H:i" }}</td><td class="px-4 py-3.5 text-gray-500">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method_label|default:payment.payment_method }}{% endif %}</td><td class="px-4 py-3.5 font-mono text-xs text-gray-400">{{ payment.gateway_payment_id|default:"—" }}</td><td class="px-4 py-3.5 text-right font-extrabold text-green-700">${{ payment.amount|clp }}</td></tr>
+        {% empty %}<tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No hay pagos confirmados.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -70,7 +117,7 @@
       <thead><tr class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400"><th class="px-5 py-3">Solicitud</th><th class="px-4 py-3">Dirección</th><th class="px-4 py-3">Recibo</th><th class="px-4 py-3">Fecha</th><th class="px-4 py-3 text-right">Monto</th></tr></thead>
       <tbody class="divide-y divide-gray-50">
         {% for certificate in recent_certificates %}
-          <tr><td class="px-5 py-3.5 font-semibold text-gray-800">{{ certificate.nombre }}</td><td class="px-4 py-3.5 text-gray-500">{{ certificate.direccion }}</td><td class="px-4 py-3.5 text-gray-500">{{ certificate.num_recibo|default:"—" }}</td><td class="px-4 py-3.5 text-gray-500">{{ certificate.fecha_pago|date:"d/m/Y"|default:"Sin fecha" }}</td><td class="px-4 py-3.5 text-right font-extrabold text-purple-700">${{ certificate.valor_cobrado|floatformat:0 }}</td></tr>
+          <tr><td class="px-5 py-3.5 font-semibold text-gray-800">{{ certificate.nombre }}</td><td class="px-4 py-3.5 text-gray-500">{{ certificate.direccion }}</td><td class="px-4 py-3.5 text-gray-500">{{ certificate.num_recibo|default:"—" }}</td><td class="px-4 py-3.5 text-gray-500">{{ certificate.fecha_pago|date:"d/m/Y"|default:"Sin fecha" }}</td><td class="px-4 py-3.5 text-right font-extrabold text-purple-700">${{ certificate.valor_cobrado|clp }}</td></tr>
         {% empty %}<tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">No hay cobros registrados.</td></tr>{% endfor %}
       </tbody>
     </table>

@@ -22,7 +22,7 @@ def apply_payment_to_charges(payment, charge_ids=None):
             .filter(
                 address=payment.address,
                 pk__in=charge_ids,
-                status__in=[Charge.Status.PENDING, Charge.Status.PARTIAL],
+                status__in=[Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE],
             )
             .order_by("due_date", "pk")
         )
