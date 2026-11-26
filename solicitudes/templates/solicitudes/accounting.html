@@ -1,0 +1,254 @@
+{% extends "solicitudes/panel_base.html" %}
+{% load clp %}
+{% block title %}Contabilidad — Panel JJVV{% endblock %}
+
+{% block panel_content %}
+<div class="acc-heading">
+  <div>
+    <small>Panel administrativo</small>
+    <h1>Contabilidad y cuotas</h1>
+    <p>Ingresos, gastos y deudas de la junta en un solo lugar.</p>
+  </div>
+  <a href="{% url 'contabilidad_export' %}" class="acc-btn acc-btn--ghost">Exportar CSV</a>
+</div>
+
+<div class="acc-tabs" role="tablist" aria-label="Secciones contables">
+  <button type="button" class="acc-tab" role="tab" data-tab="summary">Resumen</button>
+  <button type="button" class="acc-tab" role="tab" data-tab="payment-entry">Registrar pago</button>
+  <button type="button" class="acc-tab" role="tab" data-tab="expense-entry">Registrar gasto</button>
+  <button type="button" class="acc-tab" role="tab" data-tab="debts">Deudas</button>
+  <button type="button" class="acc-tab" role="tab" data-tab="income">Ingresos</button>
+  <button type="button" class="acc-tab" role="tab" data-tab="expenses">Gastos</button>
+</div>
+
+<section data-panel="summary" role="tabpanel">
+  <div class="acc-actions">
+    <button type="button" class="acc-btn" data-goto="payment-entry">+ Registrar pago</button>
+    <button type="button" class="acc-btn acc-btn--danger" data-goto="expense-entry">+ Registrar gasto</button>
+  </div>
+
+  <div class="acc-kpis">
+    <div class="acc-kpi acc-kpi--hero{% if balance < 0 %} is-negative{% endif %}"><span>Saldo contable</span><strong>${{ balance|clp }}</strong><small>Ingresos menos gastos registrados</small></div>
+    <div class="acc-kpi is-green"><span>Ingresos totales</span><strong>${{ total_income|clp }}</strong><small>Cuotas + certificados</small></div>
+    <div class="acc-kpi is-red"><span>Gastos</span><strong>${{ total_expenses|clp }}</strong></div>
+    <div class="acc-kpi is-blue"><span>Recibido presencialmente</span><strong>${{ paid_in_person|clp }}</strong></div>
+    <div class="acc-kpi is-purple"><span>Recibido por Flow</span><strong>${{ paid_online|clp }}</strong></div>
+    <div class="acc-kpi"><span>Cuotas facturadas</span><strong>${{ invoiced|clp }}</strong></div>
+    <div class="acc-kpi is-amber"><span>Deuda vigente</span><strong>${{ pending|clp }}</strong></div>
+  </div>
+
+  <div class="acc-card">
+    <div class="acc-card-head"><h2>Estado de los pagos</h2></div>
+    <div class="acc-chips">
+      {% for row in payment_counts %}<span class="acc-chip">{{ row.status }} <b>{{ row.total }}</b></span>{% empty %}<span class="acc-empty">Aún no hay pagos registrados.</span>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section data-panel="payment-entry" role="tabpanel" hidden>
+  <div class="acc-card">
+    <div class="acc-card-head">
+      <h2>Registrar pago de cuota</h2>
+      <p>Efectivo, depósito, transferencia, cheque u otro medio. Se aplica desde la cuota más antigua.</p>
+    </div>
+    <form method="post" action="{% url 'registrar_pago_cuota' %}" class="acc-form" id="payment-form">
+      {% csrf_token %}
+      <div class="acc-field acc-field--full">
+        <label for="manual-address-search">1. Elige la dirección</label>
+        <input id="manual-address-search" class="acc-search" type="search" autocomplete="off" placeholder="Busca calle, número o titular…">
+        <div id="manual-address-selected" class="acc-selected" aria-live="polite">Ninguna dirección seleccionada.</div>
+        <div class="acc-picker" role="radiogroup" aria-label="Direcciones">
+          {% for address in payment_addresses %}
+            <label class="acc-option" data-search="{{ address.label }} {{ address.owner_name }}">
+              <input type="radio" name="address_id" value="{{ address.pk }}" required>
+              <span><strong>{{ address.label }}</strong><small>{{ address.owner_name|default:"Sin titular" }}</small></span>
+            </label>
+          {% endfor %}
+          <p id="manual-address-empty" class="acc-empty" hidden>No hay coincidencias.</p>
+        </div>
+      </div>
+      <div class="acc-field"><label for="manual-amount">Monto (CLP)</label><input id="manual-amount" name="amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="Ej: 12000"></div>
+      <div class="acc-field"><label for="manual-date">Fecha de pago</label><input id="manual-date" name="payment_date" type="date" required value="{% now 'Y-m-d' %}"></div>
+      <div class="acc-field"><label for="manual-method">Medio de pago</label>
+        <select id="manual-method" name="payment_method" required>{% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      </div>
+      <div class="acc-field"><label for="manual-payer">Pagador</label><input id="manual-payer" name="payer_name" type="text" maxlength="150" placeholder="Opcional"></div>
+      <div class="acc-field"><label for="manual-reference">N° recibo/comprobante</label><input id="manual-reference" name="reference" type="text" maxlength="120" placeholder="Opcional"></div>
+      <div class="acc-field"><label for="manual-note">Observación</label><input id="manual-note" name="note" type="text" maxlength="300" placeholder="Opcional"></div>
+      <div class="acc-submit"><button type="submit" class="acc-btn">Registrar y aplicar pago</button></div>
+    </form>
+  </div>
+</section>
+
+<section data-panel="expense-entry" role="tabpanel" hidden>
+  <div class="acc-card">
+    <div class="acc-card-head">
+      <h2>Registrar gasto</h2>
+      <p>Adjunta la boleta o factura cuando esté disponible. Solo se puede descargar desde este panel.</p>
+    </div>
+    <form method="post" action="{% url 'registrar_gasto' %}" enctype="multipart/form-data" class="acc-form">
+      {% csrf_token %}
+      <div class="acc-field acc-field--wide"><label for="expense-description">Descripción</label><input id="expense-description" name="description" type="text" maxlength="240" required placeholder="Ej: Compra de materiales para la actividad"></div>
+      <div class="acc-field"><label for="expense-amount">Monto (CLP)</label><input id="expense-amount" name="amount" type="number" inputmode="numeric" min="1" step="1" required placeholder="Ej: 25000"></div>
+      <div class="acc-field"><label for="expense-date">Fecha</label><input id="expense-date" name="expense_date" type="date" required value="{% now 'Y-m-d' %}"></div>
+      <div class="acc-field"><label for="expense-category">Categoría</label>
+        <select id="expense-category" name="category" required><option value="">Selecciona…</option>{% for value, label in expense_categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      </div>
+      <div class="acc-field"><label for="expense-method">Medio de pago</label>
+        <select id="expense-method" name="payment_method" required>{% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      </div>
+      <div class="acc-field"><label for="expense-vendor">Proveedor o beneficiario</label><input id="expense-vendor" name="vendor" type="text" maxlength="150" placeholder="Opcional"></div>
+      <div class="acc-field"><label for="expense-reference">N° de documento</label><input id="expense-reference" name="reference" type="text" maxlength="120" placeholder="Boleta, factura…"></div>
+      <div class="acc-field acc-field--wide"><label for="expense-notes">Observaciones</label><input id="expense-notes" name="notes" type="text" maxlength="500" placeholder="Opcional"></div>
+      <div class="acc-field acc-field--wide"><label for="expense-receipt">Comprobante adjunto</label><input id="expense-receipt" name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,image/*"><span class="acc-note">PDF o imagen, máximo 10 MB.</span></div>
+      <div class="acc-submit"><button type="submit" class="acc-btn acc-btn--danger">Registrar gasto</button></div>
+    </form>
+  </div>
+</section>
+
+<section data-panel="debts" role="tabpanel" hidden>
+  <div class="acc-card">
+    <div class="acc-card-head"><h2>Deuda por domicilio</h2><p>Saldo pendiente de las cuotas vigentes.</p></div>
+    <div class="acc-toolbar"><input class="acc-search" type="search" placeholder="Buscar dirección o titular…" data-filter="#debts-table"></div>
+    <div class="acc-scroll">
+      <table class="acc-table" id="debts-table">
+        <thead><tr><th>Dirección / titular</th><th>Cuotas</th><th class="acc-num">Saldo</th></tr></thead>
+        <tbody>
+          {% for row in debt_by_address %}
+            <tr data-search="{{ row.address__label }} {{ row.address__owner_name }}">
+              <td class="acc-main"><p><strong>{{ row.address__label }}</strong></p><small>{{ row.address__owner_name|default:"Sin titular registrado" }}</small></td>
+              <td data-label="Cuotas">{{ row.count }}</td>
+              <td data-label="Saldo" class="acc-num acc-amount is-amber">${{ row.debt|clp }}</td>
+            </tr>
+          {% empty %}
+            <tr class="acc-empty-row"><td colspan="3" class="acc-empty">No existen deudas pendientes.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section data-panel="income" role="tabpanel" hidden>
+  <div class="acc-card">
+    <div class="acc-card-head"><h2>Últimos pagos confirmados</h2><p>Cuotas recibidas por todos los medios.</p></div>
+    <div class="acc-toolbar"><input class="acc-search" type="search" placeholder="Buscar dirección o pagador…" data-filter="#payments-table"></div>
+    <div class="acc-scroll">
+      <table class="acc-table" id="payments-table">
+        <thead><tr><th>Dirección</th><th>Fecha</th><th>Medio</th><th>Comprobante</th><th class="acc-num">Monto</th></tr></thead>
+        <tbody>
+          {% for payment in recent_payments %}
+            <tr data-search="{{ payment.address.label }} {{ payment.payer_name }} {{ payment.payer_email }}">
+              <td class="acc-main"><p><strong>{{ payment.address.label }}</strong></p><small>{{ payment.payer_name|default:payment.payer_email|default:"—" }}</small></td>
+              <td data-label="Fecha">{{ payment.paid_at|date:"d/m/Y" }}</td>
+              <td data-label="Medio">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method_label|default:payment.payment_method }}{% endif %}</td>
+              <td data-label="Comprobante">{{ payment.gateway_payment_id|default:"—" }}</td>
+              <td data-label="Monto" class="acc-num acc-amount is-green">${{ payment.amount|clp }}</td>
+            </tr>
+          {% empty %}
+            <tr class="acc-empty-row"><td colspan="5" class="acc-empty">No hay pagos confirmados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="acc-card">
+    <div class="acc-card-head"><h2>Cobros de certificados</h2></div>
+    <div class="acc-scroll">
+      <table class="acc-table">
+        <thead><tr><th>Solicitud</th><th>Recibo</th><th>Fecha</th><th class="acc-num">Monto</th></tr></thead>
+        <tbody>
+          {% for certificate in recent_certificates %}
+            <tr>
+              <td class="acc-main"><p><strong>{{ certificate.nombre }}</strong></p><small>{{ certificate.direccion }}</small></td>
+              <td data-label="Recibo">{{ certificate.num_recibo|default:"—" }}</td>
+              <td data-label="Fecha">{{ certificate.fecha_pago|date:"d/m/Y"|default:"Sin fecha" }}</td>
+              <td data-label="Monto" class="acc-num acc-amount is-purple">${{ certificate.valor_cobrado|clp }}</td>
+            </tr>
+          {% empty %}
+            <tr class="acc-empty-row"><td colspan="4" class="acc-empty">No hay cobros registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section data-panel="expenses" role="tabpanel" hidden>
+  <div class="acc-card">
+    <div class="acc-card-head"><h2>Gastos registrados</h2><p>Historial de gastos y comprobantes adjuntos.</p></div>
+    <div class="acc-toolbar"><input class="acc-search" type="search" placeholder="Buscar concepto o proveedor…" data-filter="#expenses-table"></div>
+    <div class="acc-scroll">
+      <table class="acc-table" id="expenses-table">
+        <thead><tr><th>Concepto</th><th>Fecha</th><th>Categoría</th><th>Proveedor</th><th>Comprobante</th><th class="acc-num">Monto</th></tr></thead>
+        <tbody>
+          {% for expense in recent_expenses %}
+            <tr data-search="{{ expense.description }} {{ expense.vendor }} {{ expense.reference }}">
+              <td class="acc-main"><p><strong>{{ expense.description }}</strong></p><small>Registrado por {{ expense.registered_by.get_full_name|default:expense.registered_by.username }}</small></td>
+              <td data-label="Fecha">{{ expense.expense_date|date:"d/m/Y" }}</td>
+              <td data-label="Categoría">{{ expense.get_category_display }} · {{ expense.get_payment_method_display }}</td>
+              <td data-label="Proveedor">{{ expense.vendor|default:"—" }}</td>
+              <td data-label="Comprobante">{% if expense.receipt %}<a class="acc-link" href="{% url 'expense_receipt' expense.pk %}">Descargar</a>{% else %}{{ expense.reference|default:"—" }}{% endif %}</td>
+              <td data-label="Monto" class="acc-num acc-amount is-red">${{ expense.amount|clp }}</td>
+            </tr>
+          {% empty %}
+            <tr class="acc-empty-row"><td colspan="6" class="acc-empty">Aún no hay gastos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const tabs = [...document.querySelectorAll('[data-tab]')];
+    const panels = [...document.querySelectorAll('[data-panel]')];
+    const names = tabs.map(tab => tab.dataset.tab);
+    const normalize = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    function show(name, updateHash = true) {
+      if (!names.includes(name)) name = 'summary';
+      panels.forEach(panel => { panel.hidden = panel.dataset.panel !== name; });
+      tabs.forEach(tab => {
+        const active = tab.dataset.tab === name;
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        if (active) tab.scrollIntoView({ inline: 'center', block: 'nearest' });
+      });
+      if (updateHash) history.replaceState(null, '', '#' + name);
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => { show(tab.dataset.tab); window.scrollTo({ top: 0 }); }));
+    document.querySelectorAll('[data-goto]').forEach(btn => btn.addEventListener('click', () => { show(btn.dataset.goto); window.scrollTo({ top: 0 }); }));
+
+    document.querySelectorAll('[data-filter]').forEach(input => input.addEventListener('input', () => {
+      const query = normalize(input.value.trim());
+      document.querySelectorAll(input.dataset.filter + ' tbody tr[data-search]').forEach(row => {
+        row.hidden = !normalize(row.dataset.search).includes(query);
+      });
+    }));
+
+    const search = document.getElementById('manual-address-search');
+    const options = [...document.querySelectorAll('.acc-option')];
+    const selected = document.getElementById('manual-address-selected');
+    const empty = document.getElementById('manual-address-empty');
+    search.addEventListener('input', () => {
+      const query = normalize(search.value.trim());
+      let visible = 0;
+      options.forEach(option => {
+        const match = normalize(option.dataset.search).includes(query);
+        option.hidden = !match;
+        if (match) visible += 1;
+      });
+      empty.hidden = visible !== 0;
+    });
+    options.forEach(option => option.querySelector('input').addEventListener('change', () => {
+      options.forEach(item => item.classList.toggle('is-selected', item === option));
+      selected.textContent = 'Seleccionada: ' + option.querySelector('strong').textContent;
+      selected.classList.add('is-ok');
+    }));
+
+    show(location.hash.slice(1) || 'summary', false);
+  })();
+</script>
+{% endblock %}

@@ -187,7 +187,7 @@ def contabilidad(request):
     balance = total_income - total_expenses
     recent_expenses = expenses.select_related('registered_by').order_by('-expense_date', '-pk')[:30]
 
-    return render(request, 'solicitudes/contabilidad.html', {
+    return render(request, 'solicitudes/accounting.html', {
         'invoiced': invoiced,
         'paid': paid,
         'pending': pending,
