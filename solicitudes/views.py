@@ -5,7 +5,8 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db import transaction
 from django.db.models import Count, F, Sum
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from datetime import datetime
@@ -13,7 +14,7 @@ from uuid import uuid4
 import csv
 
 from .models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso, ESTADO_CHOICES
-from payments.models import Address, Charge, Payment, PaymentEvent
+from payments.models import Address, Charge, Expense, Payment, PaymentEvent
 
 PAYMENT_METHOD_LABELS = {
     'cash': 'Efectivo',
@@ -180,6 +181,11 @@ def contabilidad(request):
     recent_payments = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).select_related('address').order_by('-paid_at')[:30]
     recent_certificates = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago', '-creado_en')[:20]
     payment_addresses = Address.objects.filter(active=True).order_by('label')
+    expenses = Expense.objects.filter(deleted_at__isnull=True)
+    total_expenses = expenses.aggregate(total=Sum('amount'))['total'] or 0
+    total_income = paid_online + paid_in_person + certificate_income
+    balance = total_income - total_expenses
+    recent_expenses = expenses.select_related('registered_by').order_by('-expense_date', '-pk')[:30]
 
     return render(request, 'solicitudes/contabilidad.html', {
         'invoiced': invoiced,
@@ -193,6 +199,8 @@ def contabilidad(request):
         'recent_certificates': recent_certificates,
         'payment_addresses': payment_addresses,
         'payment_methods': list(PAYMENT_METHOD_LABELS.items())[:5],
+        'expense_categories': Expense.Category.choices,
+        'recent_expenses': recent_expenses,
         'charge_counts': active_charges.values('status').annotate(total=Count('pk')),
     })
 
@@ -224,6 +232,71 @@ def contabilidad_export(request):
             certificate.fecha_pago, 'Certificado', certificate.num_recibo or '—', certificate.valor_cobrado,
             certificate.valor_cobrado, 0, certificate.estado, certificate.email,
         ])
+    for expense in Expense.objects.filter(deleted_at__isnull=True).select_related('registered_by').order_by('-expense_date'):
+        writer.writerow([
+            'Gasto', expense.pk, '—', expense.description,
+            expense.expense_date, expense.get_payment_method_display(), expense.reference or '—',
+            expense.amount, 0, 0, expense.get_category_display(), expense.registered_by.get_username(),
+        ])
+    return response
+
+
+@staff_member_required(login_url='/panel/ingresar/')
+@require_POST
+def registrar_gasto(request):
+    category = request.POST.get('category', '')
+    method = request.POST.get('payment_method', '')
+    if category not in Expense.Category.values:
+        messages.error(request, 'Selecciona una categoría de gasto válida.')
+        return redirect('contabilidad')
+    if method not in Expense.PaymentMethod.values:
+        messages.error(request, 'Selecciona un medio de pago válido.')
+        return redirect('contabilidad')
+
+    try:
+        amount = int(request.POST.get('amount', ''))
+        expense_date = datetime.strptime(request.POST.get('expense_date', ''), '%Y-%m-%d').date()
+        description = request.POST.get('description', '').strip()
+        if amount <= 0 or not description:
+            raise ValueError('Ingresa una descripción y un monto mayor que cero.')
+    except (TypeError, ValueError) as exc:
+        messages.error(request, str(exc) if str(exc) else 'Ingresa fecha y monto válidos.')
+        return redirect('contabilidad')
+
+    receipt = request.FILES.get('receipt')
+    if receipt and receipt.size > 10 * 1024 * 1024:
+        messages.error(request, 'El comprobante no puede superar 10 MB.')
+        return redirect('contabilidad')
+
+    expense = Expense(
+        expense_date=expense_date,
+        category=category,
+        description=description,
+        amount=amount,
+        vendor=request.POST.get('vendor', '').strip(),
+        payment_method=method,
+        reference=request.POST.get('reference', '').strip(),
+        notes=request.POST.get('notes', '').strip(),
+        receipt=receipt,
+        registered_by=request.user,
+    )
+    try:
+        expense.full_clean()
+        expense.save()
+    except ValidationError as exc:
+        messages.error(request, '; '.join(str(item) for values in exc.message_dict.values() for item in values))
+        return redirect('contabilidad')
+
+    messages.success(request, f'Gasto de ${amount:,} registrado correctamente.'.replace(',', '.'))
+    return redirect('contabilidad')
+
+
+@staff_member_required(login_url='/panel/ingresar/')
+def expense_receipt(request, pk):
+    expense = get_object_or_404(Expense, pk=pk, deleted_at__isnull=True)
+    if not expense.receipt:
+        return redirect('contabilidad')
+    response = FileResponse(expense.receipt.open('rb'), as_attachment=True, filename=expense.receipt.name.rsplit('/', 1)[-1])
     return response
 
 

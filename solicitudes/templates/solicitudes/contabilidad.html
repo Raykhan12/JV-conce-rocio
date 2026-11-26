@@ -12,12 +12,26 @@
   <a href="{% url 'contabilidad_export' %}" class="inline-flex items-center justify-center rounded-xl bg-green-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-800">Exportar contabilidad CSV</a>
 </div>
 
-<div class="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-7">
+<div class="sticky top-16 z-30 mb-6 overflow-x-auto rounded-2xl border border-gray-100 bg-white/95 p-1.5 shadow-sm backdrop-blur">
+  <div class="flex min-w-max gap-1" role="tablist" aria-label="Secciones contables">
+    <button type="button" data-accounting-tab="summary" class="accounting-tab rounded-xl bg-green-700 px-4 py-2.5 text-xs font-extrabold text-white">Resumen</button>
+    <button type="button" data-accounting-tab="payment-entry" class="accounting-tab rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">Registrar pago</button>
+    <button type="button" data-accounting-tab="expense-entry" class="accounting-tab rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">Registrar gasto</button>
+    <button type="button" data-accounting-tab="debts" class="accounting-tab rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">Deudas</button>
+    <button type="button" data-accounting-tab="income" class="accounting-tab rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">Ingresos</button>
+    <button type="button" data-accounting-tab="expenses" class="accounting-tab rounded-xl px-4 py-2.5 text-xs font-bold text-gray-500 hover:bg-gray-50">Gastos</button>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-7" data-accounting-panel="summary">
   <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-gray-400">Facturado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-gray-900">${{ invoiced|clp }}</p></div>
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-green-600">Pagado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-green-700">${{ paid|clp }}</p></div>
   <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-amber-600">Deuda vigente</p><p class="mt-3 text-2xl font-extrabold text-amber-700">${{ pending|clp }}</p></div>
-  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-blue-600">Recibido presencialmente</p><p class="mt-3 text-2xl font-extrabold text-blue-700">${{ paid_in_person|clp }}</p><p class="mt-1 text-[11px] text-gray-400">Efectivo, depósitos y otros medios registrados</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-blue-600">Recibido presencialmente</p><p class="mt-3 text-2xl font-extrabold text-blue-700">${{ paid_in_person|clp }}</p></div>
   <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-purple-600">Recibido por Flow</p><p class="mt-3 text-2xl font-extrabold text-purple-700">${{ paid_online|clp }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-green-600">Ingresos totales</p><p class="mt-3 text-2xl font-extrabold text-green-700">${{ total_income|clp }}</p><p class="mt-1 text-[11px] text-gray-400">Cuotas + certificados</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-red-600">Gastos registrados</p><p class="mt-3 text-2xl font-extrabold text-red-700">${{ total_expenses|clp }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-gray-500">Saldo contable</p><p class="mt-3 text-2xl font-extrabold {% if balance < 0 %}text-red-700{% else %}text-[#17332b]{% endif %}">${{ balance|clp }}</p></div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5"><p class="text-xs font-bold uppercase tracking-wider text-teal-600">Pagado en cuotas</p><p class="mt-3 text-2xl font-extrabold text-teal-700">${{ paid|clp }}</p></div>
 </div>
 
 <section class="mb-7 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -123,4 +137,93 @@
     </table>
   </div>
 </div>
+
+<section class="mb-7 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+  <div class="mb-5">
+    <h2 class="font-extrabold text-gray-900">Registrar gasto</h2>
+    <p class="text-xs text-gray-400">Adjunta boleta o factura cuando esté disponible. El comprobante solo puede descargarse desde este panel.</p>
+  </div>
+  <form method="post" action="{% url 'registrar_gasto' %}" enctype="multipart/form-data" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {% csrf_token %}
+    <div class="xl:col-span-2">
+      <label for="expense-description" class="mb-1.5 block text-xs font-bold text-gray-600">Descripción/concepto</label>
+      <input id="expense-description" name="description" type="text" maxlength="240" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Ej: Compra de materiales para actividad">
+    </div>
+    <div>
+      <label for="expense-amount" class="mb-1.5 block text-xs font-bold text-gray-600">Monto (CLP)</label>
+      <input id="expense-amount" name="amount" type="number" min="1" step="1" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Ej: 25000">
+    </div>
+    <div>
+      <label for="expense-date" class="mb-1.5 block text-xs font-bold text-gray-600">Fecha</label>
+      <input id="expense-date" name="expense_date" type="date" required value="{% now 'Y-m-d' %}" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+    </div>
+    <div>
+      <label for="expense-category" class="mb-1.5 block text-xs font-bold text-gray-600">Categoría</label>
+      <select id="expense-category" name="category" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"><option value="">Selecciona categoría</option>{% for value, label in expense_categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label for="expense-method" class="mb-1.5 block text-xs font-bold text-gray-600">Medio de pago</label>
+      <select id="expense-method" name="payment_method" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">{% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label for="expense-vendor" class="mb-1.5 block text-xs font-bold text-gray-600">Proveedor/beneficiario</label>
+      <input id="expense-vendor" name="vendor" type="text" maxlength="150" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div>
+      <label for="expense-reference" class="mb-1.5 block text-xs font-bold text-gray-600">N° documento</label>
+      <input id="expense-reference" name="reference" type="text" maxlength="120" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Boleta, factura o comprobante">
+    </div>
+    <div class="xl:col-span-2">
+      <label for="expense-notes" class="mb-1.5 block text-xs font-bold text-gray-600">Observaciones</label>
+      <input id="expense-notes" name="notes" type="text" maxlength="500" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div class="xl:col-span-2">
+      <label for="expense-receipt" class="mb-1.5 block text-xs font-bold text-gray-600">Comprobante adjunto</label>
+      <input id="expense-receipt" name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:font-bold file:text-gray-700">
+      <p class="mt-1 text-[11px] text-gray-400">PDF o imagen, máximo 10 MB.</p>
+    </div>
+    <div class="md:col-span-2 xl:col-span-4 flex justify-end">
+      <button type="submit" class="rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-800">Registrar gasto</button>
+    </div>
+  </form>
+</section>
+
+<div class="grid gap-6 xl:grid-cols-5">
+  <section class="xl:col-span-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+    <div class="border-b border-gray-100 px-5 py-4">
+      <h2 class="font-extrabold text-gray-900">Gastos registrados</h2>
+      <p class="text-xs text-gray-400">Historial de gastos y comprobantes adjuntos.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400"><th class="px-5 py-3">Fecha</th><th class="px-4 py-3">Concepto</th><th class="px-4 py-3">Categoría / medio</th><th class="px-4 py-3">Proveedor</th><th class="px-4 py-3">Comprobante</th><th class="px-4 py-3 text-right">Monto</th></tr></thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for expense in recent_expenses %}
+            <tr class="hover:bg-gray-50"><td class="px-5 py-3.5 text-gray-500">{{ expense.expense_date|date:"d/m/Y" }}</td><td class="px-4 py-3.5"><p class="font-semibold text-gray-900">{{ expense.description }}</p><p class="text-xs text-gray-400">Registrado por {{ expense.registered_by.get_full_name|default:expense.registered_by.username }}</p></td><td class="px-4 py-3.5 text-gray-500">{{ expense.get_category_display }}<span class="block text-xs text-gray-400">{{ expense.get_payment_method_display }}</span></td><td class="px-4 py-3.5 text-gray-500">{{ expense.vendor|default:"—" }}</td><td class="px-4 py-3.5 text-gray-500">{% if expense.receipt %}<a href="{% url 'expense_receipt' expense.pk %}" class="font-bold text-green-700 hover:underline">Descargar</a>{% elif expense.reference %}{{ expense.reference }}{% else %}—{% endif %}</td><td class="px-4 py-3.5 text-right font-extrabold text-red-700">${{ expense.amount|clp }}</td></tr>
+          {% empty %}<tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">Aún no hay gastos registrados.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
 {% endblock %}
+
+<script>
+  const accountingTabs = [...document.querySelectorAll('[data-accounting-tab]')];
+  const accountingPanels = [...document.querySelectorAll('[data-accounting-panel]')];
+  function showAccountingPanel(name) {
+    if (!accountingTabs.some(tab => tab.dataset.accountingTab === name)) name = 'summary';
+    accountingPanels.forEach(panel => panel.classList.toggle('hidden', panel.dataset.accountingPanel !== name));
+    accountingTabs.forEach(tab => {
+      const active = tab.dataset.accountingTab === name;
+      tab.classList.toggle('bg-green-700', active);
+      tab.classList.toggle('text-white', active);
+      tab.classList.toggle('text-gray-500', !active);
+      tab.classList.toggle('hover:bg-gray-50', !active);
+      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    history.replaceState(null, '', '#' + name);
+  }
+  accountingTabs.forEach(tab => tab.addEventListener('click', () => showAccountingPanel(tab.dataset.accountingTab)));
+  showAccountingPanel(location.hash.slice(1) || 'summary');
+</script>

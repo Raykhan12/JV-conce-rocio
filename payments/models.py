@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import ProtectedError, Q
 from django.utils import timezone
@@ -265,3 +266,56 @@ class PaymentEvent(models.Model):
 
     def __str__(self):
         return f"{self.gateway}:{self.event_type}:{self.external_id}"
+
+
+class Expense(models.Model):
+    class Category(models.TextChoices):
+        ADMINISTRATION = "administration", "Administración"
+        SERVICES = "services", "Servicios básicos"
+        MAINTENANCE = "maintenance", "Mantención y reparaciones"
+        COMMUNITY = "community", "Actividades comunitarias"
+        SUPPORT = "support", "Ayuda social"
+        SUPPLIES = "supplies", "Materiales e insumos"
+        INFRASTRUCTURE = "infrastructure", "Obras e infraestructura"
+        OTHER = "other", "Otro"
+
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Efectivo"
+        BANK_TRANSFER = "bank_transfer", "Transferencia bancaria"
+        DEPOSIT = "deposit", "Depósito"
+        CHECK = "check", "Cheque"
+        OTHER = "other", "Otro"
+
+    expense_date = models.DateField("Fecha del gasto")
+    category = models.CharField("Categoría", max_length=32, choices=Category.choices)
+    description = models.CharField("Descripción", max_length=240)
+    amount = models.PositiveIntegerField("Monto en CLP")
+    vendor = models.CharField("Proveedor o beneficiario", max_length=150, blank=True)
+    payment_method = models.CharField("Medio de pago", max_length=32, choices=PaymentMethod.choices)
+    reference = models.CharField("N° de comprobante/documento", max_length=120, blank=True)
+    notes = models.TextField("Observaciones", blank=True)
+    receipt = models.FileField(
+        "Comprobante adjunto",
+        upload_to="private/expenses/%Y/%m/",
+        blank=True,
+        validators=[FileExtensionValidator(["pdf", "jpg", "jpeg", "png", "webp"])],
+    )
+    registered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="registered_expenses",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = models.Manager()
+
+    class Meta:
+        db_table = "expenses"
+        ordering = ["-expense_date", "-pk"]
+        indexes = [models.Index(fields=["expense_date", "category"])]
+        constraints = [models.CheckConstraint(condition=Q(amount__gt=0), name="ck_expense_amount_positive")]
+
+    def __str__(self):
+        return f"{self.expense_date} · {self.description} · ${self.amount}"

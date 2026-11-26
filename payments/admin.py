@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from payments.models import Address, Charge, FeeConfig, Payment, PaymentAllocation, PaymentEvent
+from payments.models import Address, Charge, Expense, FeeConfig, Payment, PaymentAllocation, PaymentEvent
 
 
 @admin.register(Address)
@@ -44,3 +44,14 @@ class PaymentEventAdmin(admin.ModelAdmin):
     list_filter = ("processed", "gateway", "event_type")
     search_fields = ("external_id", "payment__id")
     readonly_fields = ("created_at", "processed_at")
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ("expense_date", "description", "category", "amount", "payment_method", "vendor", "registered_by")
+    list_filter = ("category", "payment_method", "expense_date", "registered_by")
+    search_fields = ("description", "vendor", "reference", "notes")
+    readonly_fields = ("registered_by", "created_at", "updated_at", "deleted_at")
+
+    def has_delete_permission(self, request, obj=None):
+        return False
