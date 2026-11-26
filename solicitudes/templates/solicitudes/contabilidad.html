@@ -80,6 +80,59 @@
   </form>
 </section>
 
+<section class="hidden mb-7 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm" data-accounting-panel="payment-entry">
+  <div class="mb-5">
+    <h2 class="font-extrabold text-gray-900">Registrar pago de cuota</h2>
+    <p class="text-xs text-gray-400">Para cobros en efectivo, depósito, transferencia, cheque u otro medio. Se aplica automáticamente desde la cuota más antigua.</p>
+  </div>
+  <form method="post" action="{% url 'registrar_pago_cuota' %}" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {% csrf_token %}
+    <div class="xl:col-span-2">
+      <label for="manual-address-search" class="mb-1.5 block text-xs font-bold text-gray-600">Buscar dirección o titular</label>
+      <input id="manual-address-search" type="search" autocomplete="off" placeholder="Escribe calle, número o nombre…" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+      <p id="manual-address-selected" class="mt-2 text-xs font-semibold text-green-700">Selecciona una dirección de la lista.</p>
+      <div class="mt-2 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white" role="listbox">
+        {% for address in payment_addresses %}
+          <label class="address-option flex cursor-pointer items-start gap-3 border-b border-gray-100 px-3 py-2.5 last:border-0 hover:bg-green-50" data-search="{{ address.label }} {{ address.owner_name }}">
+            <input type="radio" name="address_id" value="{{ address.pk }}" required class="address-radio mt-0.5">
+            <span><strong class="block text-sm text-gray-800">{{ address.label }}</strong><small class="text-xs text-gray-400">{{ address.owner_name|default:"Sin titular" }}</small></span>
+          </label>
+        {% endfor %}
+      </div>
+      <p id="manual-address-empty" class="hidden mt-2 text-xs text-gray-400">No hay coincidencias.</p>
+    </div>
+    <div>
+      <label for="manual-amount" class="mb-1.5 block text-xs font-bold text-gray-600">Monto (CLP)</label>
+      <input id="manual-amount" name="amount" type="number" min="1" step="1" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Ej: 12000">
+    </div>
+    <div>
+      <label for="manual-date" class="mb-1.5 block text-xs font-bold text-gray-600">Fecha de pago</label>
+      <input id="manual-date" name="payment_date" type="date" required value="{% now 'Y-m-d' %}" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+    </div>
+    <div>
+      <label for="manual-method" class="mb-1.5 block text-xs font-bold text-gray-600">Medio de pago</label>
+      <select id="manual-method" name="payment_method" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+        {% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="manual-payer" class="mb-1.5 block text-xs font-bold text-gray-600">Pagador</label>
+      <input id="manual-payer" name="payer_name" type="text" maxlength="150" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Nombre opcional">
+    </div>
+    <div>
+      <label for="manual-reference" class="mb-1.5 block text-xs font-bold text-gray-600">N° recibo/comprobante</label>
+      <input id="manual-reference" name="reference" type="text" maxlength="120" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div>
+      <label for="manual-note" class="mb-1.5 block text-xs font-bold text-gray-600">Observación</label>
+      <input id="manual-note" name="note" type="text" maxlength="300" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div class="md:col-span-2 xl:col-span-4 flex justify-end">
+      <button type="submit" class="rounded-xl bg-green-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-green-800">Registrar y aplicar pago</button>
+    </div>
+  </form>
+</section>
+
 <div class="grid gap-6 xl:grid-cols-5">
   <section class="xl:col-span-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
     <div class="border-b border-gray-100 px-5 py-4">
@@ -111,6 +164,20 @@
 </div>
 
 <div class="mt-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+  <div class="border-b border-gray-100 px-5 py-4"><h2 class="font-extrabold text-gray-900">Últimos pagos confirmados</h2></div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-400"><th class="px-5 py-3">Dirección</th><th class="px-4 py-3">Pagador</th><th class="px-4 py-3">Fecha</th><th class="px-4 py-3">Medio</th><th class="px-4 py-3">Comprobante</th><th class="px-4 py-3 text-right">Monto</th></tr></thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for payment in recent_payments %}
+          <tr class="hover:bg-gray-50"><td class="px-5 py-3.5 font-semibold text-gray-800">{{ payment.address.label }}</td><td class="px-4 py-3.5 text-gray-500">{{ payment.payer_name|default:payment.payer_email }}</td><td class="px-4 py-3.5 text-gray-500">{{ payment.paid_at|date:"d/m/Y H:i" }}</td><td class="px-4 py-3.5 text-gray-500">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method_label|default:payment.payment_method }}{% endif %}</td><td class="px-4 py-3.5 font-mono text-xs text-gray-400">{{ payment.gateway_payment_id|default:"—" }}</td><td class="px-4 py-3.5 text-right font-extrabold text-green-700">${{ payment.amount|clp }}</td></tr>
+        {% empty %}<tr><td colspan="6" class="px-5 py-12 text-center text-gray-400">No hay pagos confirmados.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="hidden mt-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" data-accounting-panel="income">
   <div class="border-b border-gray-100 px-5 py-4"><h2 class="font-extrabold text-gray-900">Últimos pagos confirmados</h2></div>
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
@@ -188,6 +255,56 @@
   </form>
 </section>
 
+<section class="hidden mb-7 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm" data-accounting-panel="expense-entry">
+  <div class="mb-5">
+    <h2 class="font-extrabold text-gray-900">Registrar gasto</h2>
+    <p class="text-xs text-gray-400">Adjunta boleta o factura cuando esté disponible. El comprobante solo puede descargarse desde este panel.</p>
+  </div>
+  <form method="post" action="{% url 'registrar_gasto' %}" enctype="multipart/form-data" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {% csrf_token %}
+    <div class="xl:col-span-2">
+      <label for="expense-description" class="mb-1.5 block text-xs font-bold text-gray-600">Descripción/concepto</label>
+      <input id="expense-description" name="description" type="text" maxlength="240" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Ej: Compra de materiales para actividad">
+    </div>
+    <div>
+      <label for="expense-amount" class="mb-1.5 block text-xs font-bold text-gray-600">Monto (CLP)</label>
+      <input id="expense-amount" name="amount" type="number" min="1" step="1" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Ej: 25000">
+    </div>
+    <div>
+      <label for="expense-date" class="mb-1.5 block text-xs font-bold text-gray-600">Fecha</label>
+      <input id="expense-date" name="expense_date" type="date" required value="{% now 'Y-m-d' %}" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+    </div>
+    <div>
+      <label for="expense-category" class="mb-1.5 block text-xs font-bold text-gray-600">Categoría</label>
+      <select id="expense-category" name="category" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"><option value="">Selecciona categoría</option>{% for value, label in expense_categories %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label for="expense-method" class="mb-1.5 block text-xs font-bold text-gray-600">Medio de pago</label>
+      <select id="expense-method" name="payment_method" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">{% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label for="expense-vendor" class="mb-1.5 block text-xs font-bold text-gray-600">Proveedor/beneficiario</label>
+      <input id="expense-vendor" name="vendor" type="text" maxlength="150" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div>
+      <label for="expense-reference" class="mb-1.5 block text-xs font-bold text-gray-600">N° documento</label>
+      <input id="expense-reference" name="reference" type="text" maxlength="120" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Boleta, factura o comprobante">
+    </div>
+    <div class="xl:col-span-2">
+      <label for="expense-notes" class="mb-1.5 block text-xs font-bold text-gray-600">Observaciones</label>
+      <input id="expense-notes" name="notes" type="text" maxlength="500" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm" placeholder="Opcional">
+    </div>
+    <div class="xl:col-span-2">
+      <label for="expense-receipt" class="mb-1.5 block text-xs font-bold text-gray-600">Comprobante adjunto</label>
+      <input id="expense-receipt" name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" class="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:font-bold file:text-gray-700">
+      <p class="mt-1 text-[11px] text-gray-400">PDF o imagen, máximo 10 MB.</p>
+    </div>
+    <div class="md:col-span-2 xl:col-span-4 flex justify-end">
+      <button type="submit" class="rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-800">Registrar gasto</button>
+    </div>
+  </form>
+</section>
+
 <div class="grid gap-6 xl:grid-cols-5">
   <section class="xl:col-span-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
     <div class="border-b border-gray-100 px-5 py-4">
@@ -211,6 +328,9 @@
 <script>
   const accountingTabs = [...document.querySelectorAll('[data-accounting-tab]')];
   const accountingPanels = [...document.querySelectorAll('[data-accounting-panel]')];
+  const addressSearch = document.getElementById('manual-address-search');
+  const addressOptions = [...document.querySelectorAll('.address-option')];
+
   function showAccountingPanel(name) {
     if (!accountingTabs.some(tab => tab.dataset.accountingTab === name)) name = 'summary';
     accountingPanels.forEach(panel => panel.classList.toggle('hidden', panel.dataset.accountingPanel !== name));
@@ -224,6 +344,23 @@
     });
     history.replaceState(null, '', '#' + name);
   }
+
   accountingTabs.forEach(tab => tab.addEventListener('click', () => showAccountingPanel(tab.dataset.accountingTab)));
+  if (addressSearch) {
+    const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    addressSearch.addEventListener('input', () => {
+      const query = normalize(addressSearch.value.trim());
+      let visible = 0;
+      addressOptions.forEach(option => {
+        const matches = normalize(option.dataset.search).includes(query);
+        option.classList.toggle('hidden', !matches);
+        if (matches) visible += 1;
+      });
+      document.getElementById('manual-address-empty').classList.toggle('hidden', visible !== 0);
+    });
+    document.querySelectorAll('.address-radio').forEach(input => input.addEventListener('change', () => {
+      document.getElementById('manual-address-selected').textContent = 'Seleccionado: ' + input.closest('.address-option').querySelector('strong').textContent;
+    }));
+  }
   showAccountingPanel(location.hash.slice(1) || 'summary');
 </script>

@@ -54,5 +54,75 @@
     {% block panel_content %}{% endblock %}
   </div>
 
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabs = [...document.querySelectorAll('[data-accounting-tab]')];
+      if (!tabs.length) return;
+      const containersByHeading = (text, selector) => [...document.querySelectorAll('h2')]
+        .filter(node => node.textContent.trim() === text)
+        .map(node => node.closest(selector))
+        .filter(Boolean);
+      const lastContainer = (text, selector) => containersByHeading(text, selector).at(-1);
+      const paymentEntries = containersByHeading('Registrar pago de cuota', 'section');
+      const expenseEntries = containersByHeading('Registrar gasto', 'section');
+      const debtGroups = containersByHeading('Deuda por domicilio', '.grid');
+      const incomePayments = containersByHeading('Últimos pagos confirmados', 'div.mt-6');
+      const incomeCertificates = containersByHeading('Cobros de certificados', 'div.mt-6');
+      const expenseGroups = containersByHeading('Gastos registrados', '.grid');
+      const panels = {
+        summary: [...document.querySelectorAll('[data-accounting-panel="summary"]')],
+        'payment-entry': paymentEntries.length ? [paymentEntries.at(-1)] : [],
+        'expense-entry': expenseEntries.length ? [expenseEntries.at(-1)] : [],
+        debts: debtGroups.length ? [debtGroups.at(-1)] : [],
+        income: [incomePayments.at(-1), incomeCertificates.at(-1)].filter(Boolean),
+        expenses: expenseGroups.length ? [expenseGroups.at(-1)] : [],
+      };
+      const allPanels = [...new Set([
+        ...Object.values(panels).flat(),
+        ...paymentEntries,
+        ...expenseEntries,
+        ...debtGroups,
+        ...incomePayments,
+        ...incomeCertificates,
+        ...expenseGroups,
+      ])];
+      const show = name => {
+        if (!panels[name]) name = 'summary';
+        allPanels.forEach(panel => panel.classList.add('hidden'));
+        panels[name].forEach(panel => panel.classList.remove('hidden'));
+        tabs.forEach(tab => {
+          const active = tab.dataset.accountingTab === name;
+          tab.classList.toggle('bg-green-700', active);
+          tab.classList.toggle('text-white', active);
+          tab.classList.toggle('text-gray-500', !active);
+          tab.classList.toggle('hover:bg-gray-50', !active);
+          tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        history.replaceState(null, '', '#' + name);
+      };
+      tabs.forEach(tab => tab.addEventListener('click', () => show(tab.dataset.accountingTab)));
+
+      const search = document.getElementById('manual-address-search');
+      const options = [...document.querySelectorAll('.address-option')];
+      if (search) {
+        const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        search.addEventListener('input', () => {
+          const query = normalize(search.value.trim());
+          let visible = 0;
+          options.forEach(option => {
+            const match = normalize(option.dataset.search || '').includes(query);
+            option.classList.toggle('hidden', !match);
+            if (match) visible += 1;
+          });
+          document.getElementById('manual-address-empty')?.classList.toggle('hidden', visible !== 0);
+        });
+        document.querySelectorAll('.address-radio').forEach(input => input.addEventListener('change', () => {
+          const selected = document.getElementById('manual-address-selected');
+          if (selected) selected.textContent = 'Seleccionado: ' + input.closest('.address-option').querySelector('strong').textContent;
+        }));
+      }
+      show(location.hash.slice(1) || 'summary');
+    });
+  </script>
 </body>
 </html>

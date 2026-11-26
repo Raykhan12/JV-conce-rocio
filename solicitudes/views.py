@@ -201,6 +201,10 @@ def contabilidad(request):
         'payment_methods': list(PAYMENT_METHOD_LABELS.items())[:5],
         'expense_categories': Expense.Category.choices,
         'recent_expenses': recent_expenses,
+        'total_expenses': total_expenses,
+        'total_income': total_income,
+        'balance': balance,
+        'payment_counts': Payment.all_objects.filter(deleted_at__isnull=True).exclude(status=Payment.Status.PENDING).values('status').annotate(total=Count('pk')),
         'charge_counts': active_charges.values('status').annotate(total=Count('pk')),
     })
 
