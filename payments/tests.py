@@ -200,6 +200,7 @@ class FlowPaymentTests(TestCase):
         self.assertEqual(self.one.paid_amount, self.one.amount)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class FlowWebhookViewTests(TestCase):
     def setUp(self):
         self.client = Client(enforce_csrf_checks=True)
@@ -328,6 +329,7 @@ class FlowExpirationTests(TestCase):
 
 
 @skipUnlessDBFeature("has_select_for_update")
+@override_settings(SECURE_SSL_REDIRECT=False)
 class FlowConcurrentWebhookTests(TransactionTestCase):
     @override_settings(FLOW_API_KEY="api-test", FLOW_SECRET_KEY="test-secret")
     def test_concurrent_webhooks_apply_payment_once(self):
@@ -376,6 +378,7 @@ class FlowConcurrentWebhookTests(TransactionTestCase):
         self.assertEqual(charge.paid_amount, 9000)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class CheckoutViewTests(TestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
