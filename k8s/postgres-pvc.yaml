@@ -4,6 +4,7 @@ metadata:
   name: postgres-data
   namespace: jv-web
 spec:
+  storageClassName: local-path
   accessModes:
     - ReadWriteOnce
   resources:

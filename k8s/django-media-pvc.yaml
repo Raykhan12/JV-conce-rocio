@@ -4,6 +4,7 @@ metadata:
   name: django-media
   namespace: jv-web
 spec:
+  storageClassName: local-path
   accessModes:
     - ReadWriteOnce
   resources:
