@@ -91,7 +91,7 @@
       <label for="manual-address-search" class="mb-1.5 block text-xs font-bold text-gray-600">Buscar dirección o titular</label>
       <input id="manual-address-search" type="search" autocomplete="off" placeholder="Escribe calle, número o nombre…" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
       <p id="manual-address-selected" class="mt-2 text-xs font-semibold text-green-700">Selecciona una dirección de la lista.</p>
-      <div class="mt-2 overflow-y-auto rounded-xl border border-gray-200 bg-white" role="listbox" style="max-height: 208px; overscroll-behavior: contain;">
+      <div class="mt-2 overflow-y-auto rounded-xl border border-gray-200 bg-white" role="listbox" style="max-height: 208px; overflow-y: auto; overscroll-behavior: contain;">
         {% for address in payment_addresses %}
           <label class="address-option flex cursor-pointer items-start gap-3 border-b border-gray-100 px-3 py-2.5 last:border-0 hover:bg-green-50" data-search="{{ address.label }} {{ address.owner_name }}">
             <input type="radio" name="address_id" value="{{ address.pk }}" required class="address-radio mt-0.5">
