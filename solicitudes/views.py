@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db import transaction
-from django.db.models import Count, F, Sum
+from django.db.models import Count, F, OuterRef, Subquery, Sum
 from django.http import FileResponse, HttpResponse
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -178,6 +178,50 @@ def contabilidad(request):
         .filter(debt__gt=0)
         .order_by('-debt', 'address__label')
     )
+    debt_lookup = {row['address_id']: row for row in debt_by_address}
+    last_paid_charges = Charge.all_objects.filter(
+        address_id=OuterRef('pk'),
+        deleted_at__isnull=True,
+        status=Charge.Status.PAID,
+    ).order_by('-period_year', '-period_month')
+    current_date = timezone.localdate()
+    month_names = (
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    )
+    address_payment_status = list(
+        Address.objects.filter(active=True)
+        .annotate(
+            last_paid_year=Subquery(last_paid_charges.values('period_year')[:1]),
+            last_paid_month=Subquery(last_paid_charges.values('period_month')[:1]),
+        )
+        .order_by('label')
+    )
+    for address in address_payment_status:
+        debt = debt_lookup.get(address.pk, {})
+        address.debt_count = debt.get('count', 0)
+        address.debt_amount = debt.get('debt', 0)
+        if address.last_paid_year and address.last_paid_month:
+            address.last_paid_label = f'{month_names[address.last_paid_month - 1]} {address.last_paid_year}'
+            paid_period = (address.last_paid_year, address.last_paid_month)
+            current_period = (current_date.year, current_date.month)
+            if paid_period < current_period:
+                next_month = address.last_paid_month + 1
+                next_year = address.last_paid_year + (1 if next_month == 13 else 0)
+                next_month = 1 if next_month == 13 else next_month
+                address.payment_state = f'Pendiente desde {month_names[next_month - 1]} {next_year}'
+                address.payment_state_class = 'is-red'
+            elif paid_period == current_period:
+                address.payment_state = 'Al día'
+                address.payment_state_class = 'is-green'
+            else:
+                address.payment_state = 'Pago adelantado registrado'
+                address.payment_state_class = 'is-amber'
+        else:
+            address.last_paid_label = 'Sin cuota pagada'
+            address.payment_state = 'Revisar domicilio'
+            address.payment_state_class = 'is-red'
+
     recent_payments = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).select_related('address').order_by('-paid_at')[:30]
     recent_certificates = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago', '-creado_en')[:20]
     payment_addresses = Address.objects.filter(active=True).order_by('label')
@@ -195,6 +239,7 @@ def contabilidad(request):
         'paid_in_person': paid_in_person,
         'certificate_income': certificate_income,
         'debt_by_address': debt_by_address,
+        'address_payment_status': address_payment_status,
         'recent_payments': recent_payments,
         'recent_certificates': recent_certificates,
         'payment_addresses': payment_addresses,

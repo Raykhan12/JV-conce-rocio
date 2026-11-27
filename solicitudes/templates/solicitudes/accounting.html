@@ -108,20 +108,22 @@
 
 <section data-panel="debts" role="tabpanel" hidden>
   <div class="acc-card">
-    <div class="acc-card-head"><h2>Deuda por domicilio</h2><p>Saldo pendiente de las cuotas vigentes.</p></div>
+    <div class="acc-card-head"><h2>Estado mensual por domicilio</h2><p>Última cuota pagada y comparación con el mes actual. El saldo corresponde únicamente a cuotas pendientes ya registradas.</p></div>
     <div class="acc-toolbar"><input class="acc-search" type="search" placeholder="Buscar dirección o titular…" data-filter="#debts-table"></div>
     <div class="acc-scroll">
       <table class="acc-table" id="debts-table">
-        <thead><tr><th>Dirección / titular</th><th>Cuotas</th><th class="acc-num">Saldo</th></tr></thead>
+        <thead><tr><th>Dirección / titular</th><th>Último mes pagado</th><th>Estado</th><th>Cuotas pendientes</th><th class="acc-num">Saldo registrado</th></tr></thead>
         <tbody>
-          {% for row in debt_by_address %}
-            <tr data-search="{{ row.address__label }} {{ row.address__owner_name }}">
-              <td class="acc-main"><p><strong>{{ row.address__label }}</strong></p><small>{{ row.address__owner_name|default:"Sin titular registrado" }}</small></td>
-              <td data-label="Cuotas">{{ row.count }}</td>
-              <td data-label="Saldo" class="acc-num acc-amount is-amber">${{ row.debt|clp }}</td>
+          {% for address in address_payment_status %}
+            <tr data-search="{{ address.label }} {{ address.owner_name }} {{ address.payment_state }} {{ address.last_paid_label }}">
+              <td class="acc-main"><p><strong>{{ address.label }}</strong></p><small>{{ address.owner_name|default:"Sin titular registrado" }}</small></td>
+              <td data-label="Último mes pagado"><strong>{{ address.last_paid_label }}</strong></td>
+              <td data-label="Estado" class="{{ address.payment_state_class }}">{{ address.payment_state }}</td>
+              <td data-label="Cuotas pendientes">{{ address.debt_count }}</td>
+              <td data-label="Saldo registrado" class="acc-num acc-amount {% if address.debt_amount %}is-amber{% else %}is-green{% endif %}">${{ address.debt_amount|clp }}</td>
             </tr>
           {% empty %}
-            <tr class="acc-empty-row"><td colspan="3" class="acc-empty">No existen deudas pendientes.</td></tr>
+            <tr class="acc-empty-row"><td colspan="5" class="acc-empty">No hay domicilios activos para revisar.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -65,6 +65,7 @@ class AccountingPanelTests(TestCase):
         self.assertEqual(staff.status_code, 200)
         self.assertContains(staff, "Pasaje Contable 55")
         self.assertContains(staff, "7.500")
+        self.assertContains(staff, "Último mes pagado")
 
     def test_accounting_csv_exports_all_payment_sources(self):
         self.client.force_login(self.staff)
