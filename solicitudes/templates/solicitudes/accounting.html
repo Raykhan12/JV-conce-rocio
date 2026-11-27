@@ -160,25 +160,22 @@
         <option value="other">Otro medio</option>
       </select>
       <input class="acc-amount-filter" id="payment-income-min" type="number" min="0" step="1" inputmode="numeric" placeholder="Monto mínimo" aria-label="Monto mínimo de pago">
-      <select class="acc-filter-select" id="payment-income-sort" aria-label="Ordenar pagos">
-        <option value="date-desc">Más recientes</option>
-        <option value="date-asc">Más antiguos</option>
-        <option value="amount-desc">Mayor monto</option>
-        <option value="amount-asc">Menor monto</option>
-        <option value="name-asc">Dirección A-Z</option>
-        <option value="name-desc">Dirección Z-A</option>
-      </select>
       <span class="acc-filter-count" id="payment-income-count"></span>
     </div>
     <div class="acc-scroll">
       <table class="acc-table" id="payments-table">
-        <thead><tr><th>Dirección</th><th>Fecha</th><th>Medio</th><th>Comprobante</th><th class="acc-num">Monto</th></tr></thead>
+        <thead><tr>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="name" aria-label="Ordenar por dirección">Dirección <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="date" aria-label="Ordenar por fecha" aria-pressed="true">Fecha <span class="acc-sort-icon" aria-hidden="true">↓</span></button></th>
+          <th scope="col">Medio</th><th scope="col">Comprobante</th>
+          <th scope="col" class="acc-num"><button type="button" class="acc-sort" data-sort-key="amount" aria-label="Ordenar por monto">Monto <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+        </tr></thead>
         <tbody>
           {% for payment in recent_payments %}
             <tr data-search="{{ payment.address.label }} {{ payment.payer_name }} {{ payment.payer_email }}" data-name="{{ payment.address.label }}" data-amount="{{ payment.accounted_amount }}" data-date="{{ payment.paid_at|date:'Y-m-d' }}" data-method="{% if payment.gateway == 'flow' %}flow{% elif payment.source == 'historical_word' %}manual{% else %}other{% endif %}">
               <td class="acc-main"><p><strong>{{ payment.address.label }}</strong></p><small>{{ payment.payer_name|default:payment.payer_email|default:"—" }}</small></td>
               <td data-label="Fecha">{{ payment.paid_at|date:"d/m/Y" }}</td>
-              <td data-label="Medio">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method_label|default:payment.payment_method }}{% endif %}</td>
+              <td data-label="Medio">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method|default:payment.payment_method }}{% endif %}</td>
               <td data-label="Comprobante">{{ payment.gateway_payment_id|default:"—" }}</td>
               <td data-label="Monto" class="acc-num acc-amount is-green">${{ payment.accounted_amount|clp }}{% if payment.metadata.flow_fee_amount %}<small>+ ${{ payment.metadata.flow_fee_amount|clp }} comisión</small>{% endif %}</td>
             </tr>
@@ -196,19 +193,16 @@
     <div class="acc-toolbar acc-toolbar--income">
       <input class="acc-search" id="certificate-income-search" type="search" placeholder="Buscar solicitante, dirección o recibo…">
       <input class="acc-amount-filter" id="certificate-income-min" type="number" min="0" step="1" inputmode="numeric" placeholder="Monto mínimo" aria-label="Monto mínimo de certificado">
-      <select class="acc-filter-select" id="certificate-income-sort" aria-label="Ordenar certificados">
-        <option value="date-desc">Más recientes</option>
-        <option value="date-asc">Más antiguos</option>
-        <option value="amount-desc">Mayor monto</option>
-        <option value="amount-asc">Menor monto</option>
-        <option value="name-asc">Nombre A-Z</option>
-        <option value="name-desc">Nombre Z-A</option>
-      </select>
       <span class="acc-filter-count" id="certificate-income-count"></span>
     </div>
     <div class="acc-scroll">
       <table class="acc-table" id="certificates-table">
-        <thead><tr><th>Solicitud</th><th>Recibo</th><th>Fecha</th><th class="acc-num">Monto</th></tr></thead>
+        <thead><tr>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="name" aria-label="Ordenar por nombre">Solicitud <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col">Recibo</th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="date" aria-label="Ordenar por fecha" aria-pressed="true">Fecha <span class="acc-sort-icon" aria-hidden="true">↓</span></button></th>
+          <th scope="col" class="acc-num"><button type="button" class="acc-sort" data-sort-key="amount" aria-label="Ordenar por monto">Monto <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+        </tr></thead>
         <tbody>
           {% for certificate in recent_certificates %}
             <tr data-search="{{ certificate.nombre }} {{ certificate.direccion }} {{ certificate.num_recibo }}" data-name="{{ certificate.nombre }}" data-amount="{{ certificate.valor_cobrado }}" data-date="{{ certificate.fecha_pago|date:'Y-m-d' }}">
@@ -307,12 +301,20 @@
     function setupIncomeFilters(prefix, tableId) {
       const search = document.getElementById(prefix + '-search');
       const minimum = document.getElementById(prefix + '-min');
-      const sort = document.getElementById(prefix + '-sort');
       const method = document.getElementById(prefix + '-method');
       const count = document.getElementById(prefix + '-count');
       const empty = document.getElementById(prefix + '-empty');
-      const tbody = document.querySelector(tableId + ' tbody');
+      const table = document.querySelector(tableId);
+      const tbody = table.querySelector('tbody');
       const rows = [...tbody.querySelectorAll('tr[data-search]')];
+      const sortButtons = [...table.querySelectorAll('[data-sort-key]')];
+      let sortField = 'date';
+      let sortDirection = 'desc';
+      function valueFor(row, field) {
+        if (field === 'amount') return Number(row.dataset.amount);
+        if (field === 'date') return row.dataset.date;
+        return normalize(row.dataset.name);
+      }
       function update() {
         const query = normalize(search.value.trim());
         const minAmount = Number(minimum.value || 0);
@@ -325,17 +327,31 @@
           row.hidden = !show;
           if (show) visible += 1;
         });
-        const [field, direction] = sort.value.split('-');
         rows.slice().sort((a, b) => {
-          const left = field === 'amount' ? Number(a.dataset.amount) : field === 'date' ? a.dataset.date : normalize(a.dataset.name);
-          const right = field === 'amount' ? Number(b.dataset.amount) : field === 'date' ? b.dataset.date : normalize(b.dataset.name);
+          const left = valueFor(a, sortField);
+          const right = valueFor(b, sortField);
           const result = typeof left === 'number' ? left - right : left.localeCompare(right, 'es', { sensitivity: 'base' });
-          return direction === 'asc' ? result : -result;
+          return sortDirection === 'asc' ? result : -result;
         }).forEach(row => tbody.insertBefore(row, empty));
         empty.hidden = visible !== 0;
         count.textContent = visible + ' registro' + (visible === 1 ? '' : 's');
+        sortButtons.forEach(button => {
+          const active = button.dataset.sortKey === sortField;
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          button.querySelector('.acc-sort-icon').textContent = active ? (sortDirection === 'asc' ? '↑' : '↓') : '↕';
+        });
       }
-      [search, minimum, sort, method].filter(Boolean).forEach(control => control.addEventListener('input', update));
+      sortButtons.forEach(button => button.addEventListener('click', () => {
+        const field = button.dataset.sortKey;
+        if (sortField === field) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortField = field;
+          sortDirection = field === 'name' ? 'asc' : 'desc';
+        }
+        update();
+      }));
+      [search, minimum, method].filter(Boolean).forEach(control => control.addEventListener('input', update));
       update();
     }
     setupIncomeFilters('payment-income', '#payments-table');

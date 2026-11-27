@@ -175,12 +175,11 @@
 .acc-table .acc-num { text-align: right; white-space: nowrap; }
 .acc-table .acc-amount { font-weight: 800; }
 .acc-table td p { margin: 0; }
-.acc-table td small { display: block; margin-top: 2px; font-size: 12px; color: var(--pnl-muted); }
-.acc-table .is-green { color: #15803d; }
-.acc-table .is-red { color: #b42323; }
-.acc-table .is-amber { color: #b45309; }
-.acc-table .is-purple { color: #7e22ce; }
-.acc-table .acc-link { color: var(--pnl-green); font-weight: 800; text-decoration: none; }
+.acc-sort { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.acc-sort:hover, .acc-sort:focus-visible { color: var(--pnl-green); }
+.acc-sort:focus-visible { outline: 2px solid rgba(31, 111, 85, .35); outline-offset: 2px; border-radius: 4px; }
+.acc-sort-icon { font-size: 13px; line-height: 1; color: #8a9892; }
+.acc-sort[aria-pressed="true"] .acc-sort-icon { color: var(--pnl-green); }
 
 @media (max-width: 767px) {
   .panel-body button, .panel-body select, .panel-body input:not([type="radio"]):not([type="checkbox"]) { min-height: 44px; }
@@ -201,10 +200,8 @@
 @media (min-width: 640px) {
   .acc-form { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 20px; }
   .acc-toolbar--filters { grid-template-columns: minmax(220px, 1fr) 180px 160px auto; align-items: center; }
-  .acc-toolbar--income { grid-template-columns: minmax(210px, 1.3fr) minmax(145px, .8fr) minmax(135px, .7fr) minmax(165px, .9fr) auto; align-items: center; }
-  .acc-toolbar--income:has(#certificate-income-search) { grid-template-columns: minmax(250px, 1.5fr) minmax(150px, .7fr) minmax(180px, 1fr) auto; }
-  .acc-submit { justify-items: end; }
-  .acc-heading { flex-direction: row; align-items: flex-end; justify-content: space-between; }
+  .acc-toolbar--income { grid-template-columns: minmax(210px, 1.5fr) minmax(145px, .8fr) minmax(135px, .7fr) auto; align-items: center; }
+  .acc-toolbar--income:has(#certificate-income-search) { grid-template-columns: minmax(250px, 1.5fr) minmax(150px, .7fr) auto; }
 }
 
 @media (min-width: 768px) {
