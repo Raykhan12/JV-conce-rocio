@@ -1,6 +1,6 @@
 {% extends "publico/base.html" %}
 {% load clp %}
-{% block title %}Pago de cuotas — JJVV{% endblock %}
+{% block title %}Pago de meses — JJVV{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -20,7 +20,7 @@
 <section class="page-hero">
   <div class="site-container page-hero-inner">
     <span class="page-kicker">Pago seguro con Flow</span>
-    <h1>Cuotas de tu hogar</h1>
+    <h1>Meses de tu hogar</h1>
     <p>Selecciona los períodos que quieres pagar. El checkout es hospedado por Flow y esta plataforma no recibe datos de tarjetas.</p>
   </div>
 </section>
@@ -29,7 +29,7 @@
   <div class="site-container max-w-3xl">
     {% if not address %}
       <div class="form-panel text-center py-12">
-        <h2 class="text-2xl font-extrabold text-[#17332b]">Revisa las cuotas de tu hogar</h2>
+        <h2 class="text-2xl font-extrabold text-[#17332b]">Revisa los meses de tu hogar</h2>
         <p class="mt-3 text-sm text-[#52665f]">Escribe tu dirección tal como aparece en los registros de la junta. No mostramos nombres ni correos.</p>
         <form method="post" class="mx-auto mt-7 max-w-xl text-left" id="address-lookup-form">
           {% csrf_token %}
@@ -48,7 +48,7 @@
       <div class="form-panel text-center py-12">
         <span class="news-empty-icon" aria-hidden="true">✓</span>
         <h2 class="text-2xl font-extrabold text-[#17332b]">¡Estás al día!</h2>
-        <p class="mt-3 text-sm text-[#52665f]">No tienes cuotas pendientes en {{ address.label }}.</p>
+        <p class="mt-3 text-sm text-[#52665f]">No tienes meses pendientes en {{ address.label }}.</p>
         <a href="?cambiar=1" class="submit-btn mt-6">Consultar otra dirección</a>
       </div>
     {% else %}
@@ -86,17 +86,17 @@
           </div>
 
           <div class="mt-5 grid gap-3">
-            <label for="charge-quantity" class="field-label">¿Cuántas cuotas quieres pagar?</label>
+            <label for="charge-quantity" class="field-label">¿Cuántos meses quieres pagar?</label>
             <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
               <input id="charge-quantity" type="number" min="1" max="{{ charges|length }}" step="1" inputmode="numeric" value="1" aria-describedby="quantity-help">
-              <button type="button" id="select-all-charges" class="submit-btn sm:!w-auto sm:px-6">Pagar todas ({{ charges|length }})</button>
+              <button type="button" id="select-all-charges" class="submit-btn sm:!w-auto sm:px-6">Pagar todos ({{ charges|length }})</button>
             </div>
             <div class="grid grid-cols-3 gap-2" aria-label="Opciones rápidas">
-              <button type="button" class="charge-quick" data-quantity="1">1 cuota</button>
-              <button type="button" class="charge-quick" data-quantity="3">3 cuotas</button>
-              <button type="button" class="charge-quick" data-quantity="6">6 cuotas</button>
+              <button type="button" class="charge-quick" data-quantity="1">1 mes</button>
+              <button type="button" class="charge-quick" data-quantity="3">3 meses</button>
+              <button type="button" class="charge-quick" data-quantity="6">6 meses</button>
             </div>
-            <p id="quantity-help" class="text-xs text-[#62766e]">Siempre se pagarían primero las cuotas más antiguas. Cambia la cantidad o elige pagar todas.</p>
+            <p id="quantity-help" class="text-xs text-[#62766e]">Siempre se pagarían primero los meses más antiguos. Cambia la cantidad o elige pagar todos.</p>
             <p id="quantity-summary" class="rounded-xl bg-[#edf5f1] px-4 py-3 text-sm font-bold text-[#17332b]" aria-live="polite"></p>
           </div>
 
@@ -130,14 +130,22 @@
           <div id="partial-amount-wrap" class="hidden">
             <label for="payment-amount" class="field-label">Monto del abono (CLP)</label>
             <input id="payment-amount" name="payment_amount" type="number" min="1" step="1" inputmode="numeric" placeholder="Ej: 5000">
-            <p class="mt-2 text-xs text-[#62766e]">El abono se aplicará primero a la cuota vencida más antigua de las seleccionadas.</p>
+            <p class="mt-2 text-xs text-[#62766e]">El abono se aplicará primero al mes vencido más antiguo de los seleccionados.</p>
           </div>
         </div>
 
         <div class="flex flex-col gap-4 rounded-3xl bg-[#0d382d] p-6 text-white sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <span class="text-xs font-bold uppercase tracking-[.13em] text-white/55">Total seleccionado</span>
-            <div class="mt-2 text-3xl font-extrabold" id="flow-total">$0</div>
+            <span class="text-xs font-bold uppercase tracking-[.13em] text-white/55">Resumen del pago</span>
+            <div class="mt-3 grid gap-1 text-sm text-white/80">
+              <div class="flex justify-between gap-8"><span>Meses seleccionados</span><strong id="flow-subtotal">$0</strong></div>
+              <div class="flex justify-between gap-8"><span>Comisión Flow + IVA</span><strong id="flow-fee">$0</strong></div>
+            </div>
+            <div class="mt-3 border-t border-white/20 pt-3">
+              <span class="text-xs font-bold uppercase tracking-[.13em] text-white/55">Total a pagar</span>
+              <div class="mt-1 text-3xl font-extrabold" id="flow-total">$0</div>
+            </div>
+            <p class="mt-2 max-w-sm text-[11px] leading-relaxed text-white/55">Incluye la comisión estimada de Flow (2,89% + IVA). El cálculo asegura que la junta reciba el valor de los meses seleccionados.</p>
           </div>
           <button type="submit" class="submit-btn !w-auto !bg-white !text-[#0d382d] !shadow-none sm:min-w-56" id="flow-submit">Pagar con Flow</button>
         </div>
@@ -159,7 +167,7 @@
     const choose = item => {
       input.value = item.label;
       addressId.value = item.id;
-      help.textContent = 'Dirección seleccionada. Ahora puedes consultar las cuotas.';
+      help.textContent = 'Dirección seleccionada. Ahora puedes consultar los meses.';
       close();
     };
     const render = items => {
@@ -219,13 +227,16 @@
     const quantity = document.getElementById('charge-quantity');
     const quantitySummary = document.getElementById('quantity-summary');
     const total = document.getElementById('flow-total');
+    const subtotalElement = document.getElementById('flow-subtotal');
+    const feeElement = document.getElementById('flow-fee');
+    const feeRate = Number('{{ flow_fee_rate }}');
     const submit = document.getElementById('flow-submit');
     const all = document.getElementById('select-all-charges');
     const modes = [...form.querySelectorAll('input[name="payment_mode"]')];
     const amountInput = document.getElementById('payment-amount');
     const amountWrap = document.getElementById('partial-amount-wrap');
     const selectedTotal = () => [...selectedInputs.querySelectorAll('input')]
-      .map(input => Number(chargeSources.find(source => source.dataset.chargeId === input.value)?.dataset.amount || 0))
+      .map(input => Number(chargeSources.find(source => source.dataset.chargeId === input.value?.trim())?.dataset.amount || 0))
       .reduce((sum, amount) => sum + amount, 0);
     const update = () => {
       const maximum = chargeSources.length;
@@ -248,11 +259,15 @@
       amountInput.max = String(value);
       const valid = value > 0 && (!isPartial || (partialValue > 0 && partialValue <= value));
       const payable = isPartial && valid ? partialValue : value;
+      const gross = payable > 0 ? Math.ceil(payable / (1 - feeRate)) : 0;
+      const fee = Math.max(0, gross - payable);
+      subtotalElement.textContent = '$' + new Intl.NumberFormat('es-CL').format(payable);
+      feeElement.textContent = '$' + new Intl.NumberFormat('es-CL').format(fee);
       const formattedValue = new Intl.NumberFormat('es-CL').format(value);
-      total.textContent = '$' + new Intl.NumberFormat('es-CL').format(payable);
+      total.textContent = '$' + new Intl.NumberFormat('es-CL').format(gross);
       quantitySummary.textContent = selectedQuantity === maximum
-        ? `Pagarás las ${maximum} cuotas pendientes: $${formattedValue}.`
-        : `Pagarás ${selectedQuantity} cuota${selectedQuantity === 1 ? '' : 's'}, desde la más antigua: $${formattedValue}.`;
+        ? `Pagarás los ${maximum} meses pendientes: $${formattedValue}.`
+        : `Pagarás ${selectedQuantity} mes${selectedQuantity === 1 ? '' : 'es'}, desde el más antiguo: $${formattedValue}.`;
       submit.disabled = !valid;
       submit.classList.toggle('opacity-50', !valid);
       if (isPartial) form.querySelector('input[name="payment_amount"]').value = partialValue || '';

@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from payments.models import Address, PaymentEvent
 from payments.services.create_flow_payment import CreateFlowPayment
 from payments.services.flow_client import FlowAPIError, FlowClient, FlowConfigurationError
+from payments.services.flow_pricing import FLOW_EFFECTIVE_FEE_RATE
 from payments.services.generate_address_charges import generate_missing_charges
 from payments.services.process_flow_webhook import FlowWebhookProcessor
 
@@ -182,7 +183,7 @@ def checkout(request):
     return render(
         request,
         "payments/checkout.html",
-        {"address": address, "addresses": addresses, "charges": charges, "charge_total": charge_total, "lookup_error": lookup_error},
+        {"address": address, "addresses": addresses, "charges": charges, "charge_total": charge_total, "flow_fee_rate": str(FLOW_EFFECTIVE_FEE_RATE), "lookup_error": lookup_error},
     )
 
 

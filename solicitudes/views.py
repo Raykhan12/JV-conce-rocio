@@ -167,7 +167,10 @@ def contabilidad(request):
     invoiced = charge_totals['invoiced'] or 0
     paid = charge_totals['paid'] or 0
     pending = max(0, invoiced - paid)
-    paid_online = Payment.all_objects.filter(status=Payment.Status.PAID, gateway='flow', deleted_at__isnull=True).aggregate(total=Sum('amount'))['total'] or 0
+    paid_online = sum(
+        payment.accounted_amount
+        for payment in Payment.all_objects.filter(status=Payment.Status.PAID, gateway='flow', deleted_at__isnull=True)
+    )
     paid_in_person = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).exclude(gateway='flow').aggregate(total=Sum('amount'))['total'] or 0
     certificate_income = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).aggregate(total=Sum('valor_cobrado'))['total'] or 0
 
@@ -323,8 +326,8 @@ def contabilidad_export(request):
             'Pago cuotas', payment.pk, payment.address.label, payment.description or 'Pago cuotas',
             payment.paid_at or payment.created_at,
             payment.metadata.get('payment_method_label') or PAYMENT_METHOD_LABELS.get(payment.payment_method, payment.payment_method or 'No informado'),
-            payment.gateway_payment_id or '—', payment.amount,
-            payment.amount if payment.status == Payment.Status.PAID else 0, 0, payment.status, payment.payer_email,
+            payment.gateway_payment_id or '—', payment.accounted_amount,
+            payment.accounted_amount if payment.status == Payment.Status.PAID else 0, 0, payment.status, payment.payer_email,
         ])
     for certificate in SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago'):
         writer.writerow([

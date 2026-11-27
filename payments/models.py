@@ -218,8 +218,13 @@ class Payment(models.Model):
         return sum(allocation.amount for allocation in self.allocations.all())
 
     @property
+    def accounted_amount(self):
+        return int(self.metadata.get("debt_amount", self.amount))
+
+    @property
     def amount_remaining(self):
-        return max(0, self.amount - self.allocated_amount)
+        allocatable_amount = self.metadata.get("debt_amount", self.amount)
+        return max(0, int(allocatable_amount) - self.allocated_amount)
 
     def apply_to_charges(self, charge_ids=None):
         from payments.services.apply_payment import apply_payment_to_charges

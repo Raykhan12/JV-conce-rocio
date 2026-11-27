@@ -15,6 +15,7 @@ from django.utils import timezone
 from payments.models import Address, Charge, Payment, PaymentAllocation, PaymentEvent
 from payments.services.create_flow_payment import CreateFlowPayment
 from payments.services.flow_client import FlowClient
+from payments.services.flow_pricing import flow_checkout_amount
 from payments.services.process_flow_webhook import FlowWebhookProcessor
 
 
@@ -115,7 +116,10 @@ class FlowPaymentTests(TestCase):
             name="Vecino Prueba",
             rut="12.345.678-9",
         )
-        self.assertEqual(payment.amount, 22500)
+        self.assertEqual(payment.amount, flow_checkout_amount(22500)[0])
+        self.assertEqual(payment.metadata["debt_amount"], 22500)
+        self.assertEqual(payment.metadata["flow_fee_amount"], payment.amount - 22500)
+        self.assertEqual(flow.created["amount"], payment.amount)
         self.assertEqual(payment.status, Payment.Status.PENDING)
         self.assertEqual(payment.gateway_preference_id, "token-test")
         self.assertEqual(payment.metadata["charge_ids"], [self.one.pk, self.two.pk])
@@ -145,9 +149,10 @@ class FlowPaymentTests(TestCase):
             payment_amount=4000,
         )
 
-        self.assertEqual(payment.amount, 4000)
-        self.assertEqual(flow.created["amount"], 4000)
-        self.assertEqual(payment.metadata["charge_ids"], [self.one.pk, self.two.pk])
+        self.assertEqual(payment.amount, flow_checkout_amount(4000)[0])
+        self.assertEqual(payment.metadata["debt_amount"], 4000)
+        self.assertEqual(payment.metadata["flow_fee_amount"], payment.amount - 4000)
+        self.assertEqual(flow.created["amount"], payment.amount)
 
     def test_rejects_charge_from_another_address_or_already_paid(self):
         other = Address.objects.create(label="Pasaje Sur 55")
@@ -440,7 +445,7 @@ class CheckoutViewTests(TestCase):
     def test_checkout_public_entry_point(self):
         response = self.client.get(reverse("payments:checkout"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Revisa las cuotas de tu hogar")
+        self.assertContains(response, "Revisa los meses de tu hogar")
 
         lookup = self.client.post(reverse("payments:checkout"), {"address": "los-aromos-10-villa concepcion"})
         self.assertRedirects(lookup, reverse("payments:checkout"))
@@ -507,5 +512,5 @@ class CheckoutViewTests(TestCase):
     def test_checkout_new_ui_shows_installments_selector(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("payments:checkout"))
-        self.assertContains(response, "¿Cuántas cuotas quieres pagar?")
-        self.assertContains(response, "Pagar todas")
+        self.assertContains(response, "¿Cuántos meses quieres pagar?")
+        self.assertContains(response, "Comisión Flow + IVA")

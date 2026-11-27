@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from payments.models import Address, Charge, Payment
 from payments.services.flow_client import FlowClient
+from payments.services.flow_pricing import FLOW_EFFECTIVE_FEE_RATE, flow_checkout_amount
 
 
 class CreateFlowPayment:
@@ -55,10 +56,11 @@ class CreateFlowPayment:
                 raise ValidationError("El monto a pagar debe ser mayor que cero.")
             if amount > total:
                 raise ValidationError("El monto a pagar no puede superar la deuda seleccionada.")
+            checkout_amount, fee_amount = flow_checkout_amount(amount)
             payment = Payment.objects.create(
                 address=address,
                 user=user,
-                amount=amount,
+                amount=checkout_amount,
                 currency="CLP",
                 status=Payment.Status.PENDING,
                 source="online",
@@ -71,6 +73,9 @@ class CreateFlowPayment:
                 metadata={
                     "charge_ids": [charge.pk for charge in charges],
                     "charge_remaining_amounts": remaining_by_id,
+                    "debt_amount": amount,
+                    "flow_fee_amount": fee_amount,
+                    "flow_fee_rate": str(FLOW_EFFECTIVE_FEE_RATE),
                 },
                 expires_at=expires_at,
             )

@@ -162,7 +162,7 @@
               <td data-label="Fecha">{{ payment.paid_at|date:"d/m/Y" }}</td>
               <td data-label="Medio">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method_label|default:payment.payment_method }}{% endif %}</td>
               <td data-label="Comprobante">{{ payment.gateway_payment_id|default:"—" }}</td>
-              <td data-label="Monto" class="acc-num acc-amount is-green">${{ payment.amount|clp }}</td>
+              <td data-label="Monto" class="acc-num acc-amount is-green">${{ payment.accounted_amount|clp }}{% if payment.metadata.flow_fee_amount %}<small>+ ${{ payment.metadata.flow_fee_amount|clp }} comisión</small>{% endif %}</td>
             </tr>
           {% empty %}
             <tr class="acc-empty-row"><td colspan="5" class="acc-empty">No hay pagos confirmados.</td></tr>
