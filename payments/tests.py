@@ -503,3 +503,9 @@ class CheckoutViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Selecciona tu dirección de la lista de sugerencias")
+
+    def test_checkout_new_ui_shows_installments_selector(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("payments:checkout"))
+        self.assertContains(response, "¿Cuántas cuotas quieres pagar?")
+        self.assertContains(response, "Pagar todas")

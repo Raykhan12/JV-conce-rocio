@@ -1,4 +1,5 @@
 {% extends "publico/base.html" %}
+{% load clp %}
 {% block title %}Pago de cuotas — JJVV{% endblock %}
 
 {% block extra_head %}
@@ -10,6 +11,8 @@
   .address-suggestion:last-child { border-bottom: 0; }
   .address-suggestion:hover, .address-suggestion:focus { background: #edf5f1; outline: none; }
   .address-help { min-height: 18px; }
+  .charge-quick { min-height: 44px; border: 1px solid rgba(23,51,43,.16); border-radius: 12px; background: #fff; color: #17332b; font-weight: 800; cursor: pointer; }
+  .charge-quick:hover, .charge-quick:focus { border-color: #2d6b56; background: #edf5f1; outline: none; }
 </style>
 {% endblock %}
 
@@ -71,23 +74,34 @@
           <div class="mb-5 flex items-end justify-between gap-4">
             <div>
               <span class="eyebrow">{{ address.label }}</span>
-              <h2 class="mt-3 text-2xl font-extrabold text-[#17332b]">Selecciona tus cuotas</h2>
+              <h2 class="mt-3 text-2xl font-extrabold text-[#17332b]">Tu deuda mensual</h2>
             </div>
-            <button type="button" id="select-all-charges" class="text-xs font-extrabold text-[#2d6b56]">Seleccionar todo</button>
+            <span class="rounded-full bg-[#edf5f1] px-3 py-2 text-xs font-extrabold text-[#17332b]">{{ charges|length }} meses</span>
           </div>
 
-          <div class="grid gap-3">
-            {% for charge in charges %}
-              <label class="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#17332b]/10 bg-[#f7f5ef] p-4 transition hover:border-[#2d6b56]/30">
-                <input type="checkbox" name="charge_ids" value="{{ charge.pk }}" data-amount="{{ charge.remaining_amount }}" checked>
-                <span class="min-w-0 flex-1">
-                  <strong class="block text-sm text-[#17332b]">{{ charge.period_month|stringformat:"02d" }}/{{ charge.period_year }}</strong>
-                  <small class="mt-1 block text-xs text-[#62766e]">Vencimiento: {{ charge.due_date|date:"d \d\e F" }}{% if charge.status == 'partial' %} · Abono previo registrado{% endif %}</small>
-                </span>
-                <strong class="whitespace-nowrap text-sm text-[#17332b]">${{ charge.remaining_amount|floatformat:0 }}</strong>
-              </label>
-            {% endfor %}
+          <div class="grid gap-3 rounded-2xl bg-[#f7f5ef] p-5 sm:grid-cols-2">
+            <div><span class="text-xs font-bold uppercase tracking-[.12em] text-[#62766e]">Meses pendientes</span><strong class="mt-1 block text-3xl text-[#17332b]">{{ charges|length }}</strong></div>
+            <div><span class="text-xs font-bold uppercase tracking-[.12em]">Deuda total</span><strong class="mt-1 block text-3xl text-[#17332b]">${{ charge_total|clp }}</strong></div>
+            <p class="text-sm text-[#52665f] sm:col-span-2">{% with last_charge=charges|last %}Desde {{ charges.0.period_month|stringformat:"02d" }}/{{ charges.0.period_year }} hasta {{ last_charge.period_month|stringformat:"02d" }}/{{ last_charge.period_year }}. Los años 2020 y 2021 condonados no se incluyen.{% endwith %}</p>
           </div>
+
+          <div class="mt-5 grid gap-3">
+            <label for="charge-quantity" class="field-label">¿Cuántas cuotas quieres pagar?</label>
+            <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <input id="charge-quantity" type="number" min="1" max="{{ charges|length }}" step="1" inputmode="numeric" value="1" aria-describedby="quantity-help">
+              <button type="button" id="select-all-charges" class="submit-btn sm:!w-auto sm:px-6">Pagar todas ({{ charges|length }})</button>
+            </div>
+            <div class="grid grid-cols-3 gap-2" aria-label="Opciones rápidas">
+              <button type="button" class="charge-quick" data-quantity="1">1 cuota</button>
+              <button type="button" class="charge-quick" data-quantity="3">3 cuotas</button>
+              <button type="button" class="charge-quick" data-quantity="6">6 cuotas</button>
+            </div>
+            <p id="quantity-help" class="text-xs text-[#62766e]">Siempre se pagarían primero las cuotas más antiguas. Cambia la cantidad o elige pagar todas.</p>
+            <p id="quantity-summary" class="rounded-xl bg-[#edf5f1] px-4 py-3 text-sm font-bold text-[#17332b]" aria-live="polite"></p>
+          </div>
+
+          <div id="selected-charge-inputs" hidden></div>
+          {% for charge in charges %}<span class="charge-source" data-charge-id="{{ charge.pk }}" data-amount="{{ charge.remaining_amount }}" hidden></span>{% endfor %}
         </div>
 
         <div class="form-panel grid gap-4 sm:grid-cols-2">
@@ -186,7 +200,7 @@
     });
     input.addEventListener('keydown', event => {
       if (event.key === 'ArrowDown' && !list.hidden) { event.preventDefault(); list.querySelector('button')?.focus(); }
-      if (event.key === 'Escape') close();
+      if (event.key === 'Escape' ) close();
     });
     list.addEventListener('keydown', event => {
       const buttons = [...list.querySelectorAll('button')];
@@ -200,15 +214,32 @@
 
   const form = document.getElementById('flow-checkout-form');
   if (form) {
-    const checks = [...form.querySelectorAll('input[data-amount]')];
+    const chargeSources = [...form.querySelectorAll('.charge-source')];
+    const selectedInputs = document.getElementById('selected-charge-inputs');
+    const quantity = document.getElementById('charge-quantity');
+    const quantitySummary = document.getElementById('quantity-summary');
     const total = document.getElementById('flow-total');
     const submit = document.getElementById('flow-submit');
     const all = document.getElementById('select-all-charges');
     const modes = [...form.querySelectorAll('input[name="payment_mode"]')];
     const amountInput = document.getElementById('payment-amount');
     const amountWrap = document.getElementById('partial-amount-wrap');
-    const selectedTotal = () => checks.filter(item => item.checked).reduce((sum, item) => sum + Number(item.dataset.amount), 0);
+    const selectedTotal = () => [...selectedInputs.querySelectorAll('input')]
+      .map(input => Number(chargeSources.find(source => source.dataset.chargeId === input.value)?.dataset.amount || 0))
+      .reduce((sum, amount) => sum + amount, 0);
     const update = () => {
+      const maximum = chargeSources.length;
+      const requested = Number.parseInt(quantity.value, 10) || 1;
+      const selectedQuantity = Math.max(1, Math.min(maximum, requested));
+      quantity.value = String(selectedQuantity);
+      selectedInputs.replaceChildren();
+      chargeSources.slice(0, selectedQuantity).forEach(source => {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'charge_ids';
+        hidden.value = source.dataset.chargeId;
+        selectedInputs.appendChild(hidden);
+      });
       const value = selectedTotal();
       const isPartial = modes.find(item => item.checked)?.value === 'partial';
       const partialValue = Number(amountInput.value || 0);
@@ -216,16 +247,25 @@
       amountInput.required = isPartial;
       amountInput.max = String(value);
       const valid = value > 0 && (!isPartial || (partialValue > 0 && partialValue <= value));
-      total.textContent = '$' + new Intl.NumberFormat('es-CL').format(isPartial && valid ? partialValue : value);
+      const payable = isPartial && valid ? partialValue : value;
+      const formattedValue = new Intl.NumberFormat('es-CL').format(value);
+      total.textContent = '$' + new Intl.NumberFormat('es-CL').format(payable);
+      quantitySummary.textContent = selectedQuantity === maximum
+        ? `Pagarás las ${maximum} cuotas pendientes: $${formattedValue}.`
+        : `Pagarás ${selectedQuantity} cuota${selectedQuantity === 1 ? '' : 's'}, desde la más antigua: $${formattedValue}.`;
       submit.disabled = !valid;
       submit.classList.toggle('opacity-50', !valid);
       if (isPartial) form.querySelector('input[name="payment_amount"]').value = partialValue || '';
-      all.textContent = checks.every(item => item.checked) ? 'Deseleccionar todo' : 'Seleccionar todo';
+      all.textContent = selectedQuantity === maximum ? `Todas seleccionadas (${maximum})` : `Pagar todas (${maximum})`;
     };
-    checks.forEach(item => item.addEventListener('change', update));
+    quantity.addEventListener('input', update);
     modes.forEach(item => item.addEventListener('change', update));
     amountInput.addEventListener('input', update);
-    all.addEventListener('click', () => { const select = !checks.every(item => item.checked); checks.forEach(item => item.checked = select); update(); });
+    form.querySelectorAll('[data-quantity]').forEach(button => button.addEventListener('click', () => {
+      quantity.value = String(Math.min(chargeSources.length, Number(button.dataset.quantity)));
+      update();
+    }));
+    all.addEventListener('click', () => { quantity.value = String(chargeSources.length); update(); });
     form.addEventListener('submit', () => { submit.disabled = true; submit.textContent = 'Abriendo Flow…'; });
     update();
   }

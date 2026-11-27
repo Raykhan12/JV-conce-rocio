@@ -173,14 +173,16 @@ def checkout(request):
         request.session["payment_address_id"] = address.pk
 
     charges = []
+    charge_total = 0
     if address:
         generate_missing_charges(address)
-        charges = address.charges.filter(status__in=["pending", "partial", "overdue"]).order_by("due_date", "pk")
+        charges = list(address.charges.filter(status__in=["pending", "partial", "overdue"]).order_by("due_date", "pk"))
+        charge_total = sum(charge.remaining_amount for charge in charges)
 
     return render(
         request,
         "payments/checkout.html",
-        {"address": address, "addresses": addresses, "charges": charges, "lookup_error": lookup_error},
+        {"address": address, "addresses": addresses, "charges": charges, "charge_total": charge_total, "lookup_error": lookup_error},
     )
 
 
