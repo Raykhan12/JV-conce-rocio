@@ -127,11 +127,17 @@
       <span id="debt-visible-count" class="acc-filter-count"></span>
     </div>
     <div class="acc-scroll">
-      <table class="acc-table" id="debts-table">
-        <thead><tr><th>Dirección / titular</th><th>Último mes pagado</th><th>Estado</th><th>Meses pendientes</th><th class="acc-num">Monto adeudado</th></tr></thead>
+      <table class="acc-table acc-table--sortable" id="debts-table">
+        <thead><tr>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="name" aria-label="Ordenar deudas por dirección">Dirección <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="last-paid" aria-label="Ordenar por último mes pagado">Último mes <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col">Estado</th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="months" aria-label="Ordenar por meses pendientes">Meses <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col" class="acc-num"><button type="button" class="acc-sort" data-sort-key="amount" aria-label="Ordenar deudas por monto">Monto <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+        </tr></thead>
         <tbody>
           {% for address in address_payment_status %}
-            <tr data-search="{{ address.label }} {{ address.owner_name }} {{ address.payment_state }} {{ address.last_paid_label }}" data-debt-state="{{ address.payment_state_key }}" data-debt-amount="{{ address.debt_amount }}">
+            <tr data-search="{{ address.label }} {{ address.owner_name }} {{ address.payment_state }} {{ address.last_paid_label }}" data-name="{{ address.label }}" data-last-paid="{{ address.last_paid_year|default:'0000' }}-{{ address.last_paid_month|stringformat:'02d' }}" data-months="{{ address.debt_count }}" data-amount="{{ address.debt_amount }}" data-debt-state="{{ address.payment_state_key }}" data-debt-amount="{{ address.debt_amount }}">
               <td class="acc-main"><p><strong>{{ address.label }}</strong></p><small>{{ address.owner_name|default:"Sin titular registrado" }}</small></td>
               <td data-label="Último mes pagado"><strong>{{ address.last_paid_label }}</strong></td>
               <td data-label="Estado" class="{{ address.payment_state_class }}">{{ address.payment_state }}</td>
@@ -163,7 +169,7 @@
       <span class="acc-filter-count" id="payment-income-count"></span>
     </div>
     <div class="acc-scroll">
-      <table class="acc-table" id="payments-table">
+      <table class="acc-table acc-table--sortable" id="payments-table">
         <thead><tr>
           <th scope="col"><button type="button" class="acc-sort" data-sort-key="name" aria-label="Ordenar por dirección">Dirección <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
           <th scope="col"><button type="button" class="acc-sort" data-sort-key="date" aria-label="Ordenar por fecha" aria-pressed="true">Fecha <span class="acc-sort-icon" aria-hidden="true">↓</span></button></th>
@@ -196,7 +202,7 @@
       <span class="acc-filter-count" id="certificate-income-count"></span>
     </div>
     <div class="acc-scroll">
-      <table class="acc-table" id="certificates-table">
+      <table class="acc-table acc-table--sortable" id="certificates-table">
         <thead><tr>
           <th scope="col"><button type="button" class="acc-sort" data-sort-key="name" aria-label="Ordenar por nombre">Solicitud <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
           <th scope="col">Recibo</th>
@@ -226,11 +232,18 @@
     <div class="acc-card-head"><h2>Gastos registrados</h2><p>Historial de gastos y comprobantes adjuntos.</p></div>
     <div class="acc-toolbar"><input class="acc-search" type="search" placeholder="Buscar concepto o proveedor…" data-filter="#expenses-table"></div>
     <div class="acc-scroll">
-      <table class="acc-table" id="expenses-table">
-        <thead><tr><th>Concepto</th><th>Fecha</th><th>Categoría</th><th>Proveedor</th><th>Comprobante</th><th class="acc-num">Monto</th></tr></thead>
+      <table class="acc-table acc-table--sortable" id="expenses-table">
+        <thead><tr>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="name" aria-label="Ordenar gastos por concepto">Concepto <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="date" aria-label="Ordenar gastos por fecha" aria-pressed="true">Fecha <span class="acc-sort-icon" aria-hidden="true">↓</span></button></th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="category" aria-label="Ordenar gastos por categoría">Categoría <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col"><button type="button" class="acc-sort" data-sort-key="vendor" aria-label="Ordenar gastos por proveedor">Proveedor <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+          <th scope="col">Comprobante</th>
+          <th scope="col" class="acc-num"><button type="button" class="acc-sort" data-sort-key="amount" aria-label="Ordenar gastos por monto">Monto <span class="acc-sort-icon" aria-hidden="true">↕</span></button></th>
+        </tr></thead>
         <tbody>
           {% for expense in recent_expenses %}
-            <tr data-search="{{ expense.description }} {{ expense.vendor }} {{ expense.reference }}">
+            <tr data-search="{{ expense.description }} {{ expense.vendor }} {{ expense.reference }}" data-name="{{ expense.description }}" data-date="{{ expense.expense_date|date:'Y-m-d' }}" data-category="{{ expense.get_category_display }}" data-vendor="{{ expense.vendor|default:'' }}" data-amount="{{ expense.amount }}">
               <td class="acc-main"><p><strong>{{ expense.description }}</strong></p><small>Registrado por {{ expense.registered_by.get_full_name|default:expense.registered_by.username }}</small></td>
               <td data-label="Fecha">{{ expense.expense_date|date:"d/m/Y" }}</td>
               <td data-label="Categoría">{{ expense.get_category_display }} · {{ expense.get_payment_method_display }}</td>
@@ -296,7 +309,46 @@
       debtVisibleCount.textContent = visible + ' domicilio' + (visible === 1 ? '' : 's');
     }
     [debtSearch, debtStateFilter, debtAmountFilter].forEach(control => control.addEventListener('input', filterDebts));
+
+    function setupStandaloneSorting(tableId, initialField, initialDirection, aliases = {}) {
+      const table = document.querySelector(tableId);
+      const tbody = table.querySelector('tbody');
+      const empty = tbody.querySelector('.acc-empty-row[id]');
+      const rows = [...tbody.querySelectorAll('tr[data-search]')];
+      const buttons = [...table.querySelectorAll('[data-sort-key]')];
+      let field = initialField;
+      let direction = initialDirection;
+      function sortRows() {
+        rows.slice().sort((a, b) => {
+          const key = aliases[field] || field;
+          const aRaw = a.dataset[key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] || '';
+          const bRaw = b.dataset[key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] || '';
+          const numeric = ['amount', 'months'].includes(field);
+          const left = numeric ? Number(aRaw) : normalize(aRaw);
+          const right = numeric ? Number(bRaw) : normalize(bRaw);
+          const result = numeric ? left - right : left.localeCompare(right, 'es', { sensitivity: 'base' });
+          return direction === 'asc' ? result : -result;
+        }).forEach(row => tbody.insertBefore(row, empty));
+        buttons.forEach(button => {
+          const active = button.dataset.sortKey === field;
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          button.querySelector('.acc-sort-icon').textContent = active ? (direction === 'asc' ? '↑' : '↓') : '↕';
+        });
+      }
+      buttons.forEach(button => button.addEventListener('click', () => {
+        const nextField = button.dataset.sortKey;
+        if (field === nextField) direction = direction === 'asc' ? 'desc' : 'asc';
+        else { field = nextField; direction = ['name', 'last-paid', 'category', 'vendor'].includes(field) ? 'asc' : 'desc'; }
+        sortRows();
+      }));
+      return sortRows;
+    }
+
+    const sortDebts = setupStandaloneSorting('#debts-table', 'name', 'asc');
+    const sortExpenses = setupStandaloneSorting('#expenses-table', 'date', 'desc');
     filterDebts();
+    sortDebts();
+    sortExpenses();
 
     function setupIncomeFilters(prefix, tableId) {
       const search = document.getElementById(prefix + '-search');

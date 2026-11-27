@@ -72,6 +72,9 @@ class AccountingPanelTests(TestCase):
         self.assertContains(staff, "Ordenar por dirección")
         self.assertContains(staff, "Ordenar por fecha")
         self.assertContains(staff, "Ordenar por monto")
+        self.assertContains(staff, "Ordenar deudas por dirección")
+        self.assertContains(staff, "Ordenar gastos por concepto")
+        self.assertContains(staff, "Ordenar gastos por monto")
         self.assertNotContains(staff, "id=\"payment-income-sort\"")
 
     def test_accounting_csv_exports_all_payment_sources(self):

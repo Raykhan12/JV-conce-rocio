@@ -186,7 +186,7 @@
   .acc-table, .acc-table tbody { display: block; }
   .acc-table thead { display: none; }
   #payments-table thead, #certificates-table thead { display: block; padding: 10px 12px; border-bottom: 1px solid var(--pnl-line); background: #f7f9f8; }
-  #payments-table thead tr, #certificates-table thead tr { display: flex; gap: 8px; padding: 0; border: 0; }
+  #payments-table thead tr, #certificates-table thead tr { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; border: 0; }
   #payments-table thead th, #certificates-table thead th { display: none; position: static; padding: 0; border: 0; background: transparent; }
   #payments-table thead th:has(.acc-sort), #certificates-table thead th:has(.acc-sort) { display: block; }
   .acc-sort { min-height: 40px; padding: 0 10px; border: 1px solid #d5ddd9; border-radius: 10px; background: #fff; }
