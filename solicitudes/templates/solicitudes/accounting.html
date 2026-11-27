@@ -151,13 +151,31 @@
 <section data-panel="income" role="tabpanel" hidden>
   <div class="acc-card">
     <div class="acc-card-head"><h2>Últimos pagos confirmados</h2><p>Cuotas recibidas por todos los medios.</p></div>
-    <div class="acc-toolbar"><input class="acc-search" type="search" placeholder="Buscar dirección o pagador…" data-filter="#payments-table"></div>
+    <div class="acc-toolbar acc-toolbar--income">
+      <input class="acc-search" id="payment-income-search" type="search" placeholder="Buscar dirección o pagador…">
+      <select class="acc-filter-select" id="payment-income-method" aria-label="Filtrar pagos por medio">
+        <option value="all">Todos los medios</option>
+        <option value="flow">Flow</option>
+        <option value="manual">Presencial / histórico</option>
+        <option value="other">Otro medio</option>
+      </select>
+      <input class="acc-amount-filter" id="payment-income-min" type="number" min="0" step="1" inputmode="numeric" placeholder="Monto mínimo" aria-label="Monto mínimo de pago">
+      <select class="acc-filter-select" id="payment-income-sort" aria-label="Ordenar pagos">
+        <option value="date-desc">Más recientes</option>
+        <option value="date-asc">Más antiguos</option>
+        <option value="amount-desc">Mayor monto</option>
+        <option value="amount-asc">Menor monto</option>
+        <option value="name-asc">Dirección A-Z</option>
+        <option value="name-desc">Dirección Z-A</option>
+      </select>
+      <span class="acc-filter-count" id="payment-income-count"></span>
+    </div>
     <div class="acc-scroll">
       <table class="acc-table" id="payments-table">
         <thead><tr><th>Dirección</th><th>Fecha</th><th>Medio</th><th>Comprobante</th><th class="acc-num">Monto</th></tr></thead>
         <tbody>
           {% for payment in recent_payments %}
-            <tr data-search="{{ payment.address.label }} {{ payment.payer_name }} {{ payment.payer_email }}">
+            <tr data-search="{{ payment.address.label }} {{ payment.payer_name }} {{ payment.payer_email }}" data-name="{{ payment.address.label }}" data-amount="{{ payment.accounted_amount }}" data-date="{{ payment.paid_at|date:'Y-m-d' }}" data-method="{% if payment.gateway == 'flow' %}flow{% elif payment.source == 'historical_word' %}manual{% else %}other{% endif %}">
               <td class="acc-main"><p><strong>{{ payment.address.label }}</strong></p><small>{{ payment.payer_name|default:payment.payer_email|default:"—" }}</small></td>
               <td data-label="Fecha">{{ payment.paid_at|date:"d/m/Y" }}</td>
               <td data-label="Medio">{% if payment.gateway == 'flow' %}Flow{% elif payment.source == 'historical_word' %}Histórico / presencial{% else %}{{ payment.metadata.payment_method_label|default:payment.payment_method }}{% endif %}</td>
@@ -167,19 +185,33 @@
           {% empty %}
             <tr class="acc-empty-row"><td colspan="5" class="acc-empty">No hay pagos confirmados.</td></tr>
           {% endfor %}
+          <tr class="acc-empty-row" id="payment-income-empty" hidden><td colspan="5" class="acc-empty">No hay pagos que coincidan con los filtros.</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
   <div class="acc-card">
-    <div class="acc-card-head"><h2>Cobros de certificados</h2></div>
+    <div class="acc-card-head"><h2>Cobros de certificados</h2><p>Filtra por solicitante, dirección, recibo o monto.</p></div>
+    <div class="acc-toolbar acc-toolbar--income">
+      <input class="acc-search" id="certificate-income-search" type="search" placeholder="Buscar solicitante, dirección o recibo…">
+      <input class="acc-amount-filter" id="certificate-income-min" type="number" min="0" step="1" inputmode="numeric" placeholder="Monto mínimo" aria-label="Monto mínimo de certificado">
+      <select class="acc-filter-select" id="certificate-income-sort" aria-label="Ordenar certificados">
+        <option value="date-desc">Más recientes</option>
+        <option value="date-asc">Más antiguos</option>
+        <option value="amount-desc">Mayor monto</option>
+        <option value="amount-asc">Menor monto</option>
+        <option value="name-asc">Nombre A-Z</option>
+        <option value="name-desc">Nombre Z-A</option>
+      </select>
+      <span class="acc-filter-count" id="certificate-income-count"></span>
+    </div>
     <div class="acc-scroll">
-      <table class="acc-table">
+      <table class="acc-table" id="certificates-table">
         <thead><tr><th>Solicitud</th><th>Recibo</th><th>Fecha</th><th class="acc-num">Monto</th></tr></thead>
         <tbody>
           {% for certificate in recent_certificates %}
-            <tr>
+            <tr data-search="{{ certificate.nombre }} {{ certificate.direccion }} {{ certificate.num_recibo }}" data-name="{{ certificate.nombre }}" data-amount="{{ certificate.valor_cobrado }}" data-date="{{ certificate.fecha_pago|date:'Y-m-d' }}">
               <td class="acc-main"><p><strong>{{ certificate.nombre }}</strong></p><small>{{ certificate.direccion }}</small></td>
               <td data-label="Recibo">{{ certificate.num_recibo|default:"—" }}</td>
               <td data-label="Fecha">{{ certificate.fecha_pago|date:"d/m/Y"|default:"Sin fecha" }}</td>
@@ -188,6 +220,7 @@
           {% empty %}
             <tr class="acc-empty-row"><td colspan="4" class="acc-empty">No hay cobros registrados.</td></tr>
           {% endfor %}
+          <tr class="acc-empty-row" id="certificate-income-empty" hidden><td colspan="4" class="acc-empty">No hay certificados que coincidan con los filtros.</td></tr>
         </tbody>
       </table>
     </div>
@@ -270,6 +303,43 @@
     }
     [debtSearch, debtStateFilter, debtAmountFilter].forEach(control => control.addEventListener('input', filterDebts));
     filterDebts();
+
+    function setupIncomeFilters(prefix, tableId) {
+      const search = document.getElementById(prefix + '-search');
+      const minimum = document.getElementById(prefix + '-min');
+      const sort = document.getElementById(prefix + '-sort');
+      const method = document.getElementById(prefix + '-method');
+      const count = document.getElementById(prefix + '-count');
+      const empty = document.getElementById(prefix + '-empty');
+      const tbody = document.querySelector(tableId + ' tbody');
+      const rows = [...tbody.querySelectorAll('tr[data-search]')];
+      function update() {
+        const query = normalize(search.value.trim());
+        const minAmount = Number(minimum.value || 0);
+        let visible = 0;
+        const matches = row => normalize(row.dataset.search).includes(query)
+          && Number(row.dataset.amount) >= minAmount
+          && (!method || method.value === 'all' || row.dataset.method === method.value);
+        rows.forEach(row => {
+          const show = matches(row);
+          row.hidden = !show;
+          if (show) visible += 1;
+        });
+        const [field, direction] = sort.value.split('-');
+        rows.slice().sort((a, b) => {
+          const left = field === 'amount' ? Number(a.dataset.amount) : field === 'date' ? a.dataset.date : normalize(a.dataset.name);
+          const right = field === 'amount' ? Number(b.dataset.amount) : field === 'date' ? b.dataset.date : normalize(b.dataset.name);
+          const result = typeof left === 'number' ? left - right : left.localeCompare(right, 'es', { sensitivity: 'base' });
+          return direction === 'asc' ? result : -result;
+        }).forEach(row => tbody.insertBefore(row, empty));
+        empty.hidden = visible !== 0;
+        count.textContent = visible + ' registro' + (visible === 1 ? '' : 's');
+      }
+      [search, minimum, sort, method].filter(Boolean).forEach(control => control.addEventListener('input', update));
+      update();
+    }
+    setupIncomeFilters('payment-income', '#payments-table');
+    setupIncomeFilters('certificate-income', '#certificates-table');
 
     const search = document.getElementById('manual-address-search');
     const options = [...document.querySelectorAll('.acc-option')];

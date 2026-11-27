@@ -130,6 +130,9 @@
 .acc-toolbar--filters { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .acc-filter-select { width: 100%; min-height: 44px; padding: 0 36px 0 12px; border: 1px solid #d5ddd9; border-radius: 12px; background: #fff; color: var(--pnl-ink); }
 .acc-filter-count { align-self: center; font-size: 12px; font-weight: 800; color: var(--pnl-muted); }
+.acc-toolbar--income { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.acc-amount-filter { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid #d5ddd9; border-radius: 12px; background: #fff; color: var(--pnl-ink); }
+.acc-amount-filter:focus { outline: 2px solid rgba(31, 111, 85, .35); border-color: var(--pnl-green); }
 .acc-search {
   width: 100%; min-height: 44px; padding: 0 12px 0 38px; border: 1px solid #d5ddd9; border-radius: 12px; color: var(--pnl-ink);
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7a74' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 12px center / 18px;
@@ -198,6 +201,8 @@
 @media (min-width: 640px) {
   .acc-form { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 20px; }
   .acc-toolbar--filters { grid-template-columns: minmax(220px, 1fr) 180px 160px auto; align-items: center; }
+  .acc-toolbar--income { grid-template-columns: minmax(210px, 1.3fr) minmax(145px, .8fr) minmax(135px, .7fr) minmax(165px, .9fr) auto; align-items: center; }
+  .acc-toolbar--income:has(#certificate-income-search) { grid-template-columns: minmax(250px, 1.5fr) minmax(150px, .7fr) minmax(180px, 1fr) auto; }
   .acc-submit { justify-items: end; }
   .acc-heading { flex-direction: row; align-items: flex-end; justify-content: space-between; }
 }

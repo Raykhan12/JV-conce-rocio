@@ -68,6 +68,9 @@ class AccountingPanelTests(TestCase):
         self.assertContains(staff, "Último mes pagado")
         self.assertContains(staff, "Monto adeudado")
         self.assertContains(staff, "Solo con deuda")
+        self.assertContains(staff, "Monto mínimo de pago")
+        self.assertContains(staff, "Dirección A-Z")
+        self.assertContains(staff, "Nombre A-Z")
 
     def test_accounting_csv_exports_all_payment_sources(self):
         self.client.force_login(self.staff)
