@@ -40,7 +40,7 @@ class CreateFlowPayment:
                 .filter(
                     pk__in=charge_ids,
                     address=address,
-                    status__in=[Charge.Status.PENDING, Charge.Status.PARTIAL],
+                    status__in=[Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE],
                 )
                 .order_by("due_date", "pk")
             )

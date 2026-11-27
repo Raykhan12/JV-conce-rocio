@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import time
-from datetime import timedelta
+from datetime import timedelta, date
 from threading import Barrier, Thread
 from unittest.mock import patch
 
@@ -212,6 +212,28 @@ class FlowPaymentTests(TestCase):
         self.assertEqual(PaymentAllocation.objects.filter(payment=payment, charge=self.one).count(), 1)
         self.one.refresh_from_db()
         self.assertEqual(self.one.paid_amount, self.one.amount)
+
+    def test_checkout_materializes_missing_months_and_excludes_waived_years(self):
+        historical = Address.objects.create(label="Alborada Prueba 82")
+        Charge.objects.create(
+            address=historical,
+            period_year=2019,
+            period_month=12,
+            amount=1000,
+            paid_amount=1000,
+            status=Charge.Status.PAID,
+            due_date=date(2019, 12, 10),
+        )
+
+        from payments.services.generate_address_charges import generate_missing_charges
+
+        generated = generate_missing_charges(historical, through_date=date(2022, 3, 31))
+
+        self.assertEqual(
+            [(item.period_year, item.period_month, item.amount) for item in generated],
+            [(2022, 1, 1000), (2022, 2, 1000), (2022, 3, 1000)],
+        )
+        self.assertFalse(Charge.all_objects.filter(address=historical, period_year__in=[2020, 2021]).exists())
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

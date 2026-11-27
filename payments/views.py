@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from payments.models import Address, PaymentEvent
 from payments.services.create_flow_payment import CreateFlowPayment
 from payments.services.flow_client import FlowAPIError, FlowClient, FlowConfigurationError
+from payments.services.generate_address_charges import generate_missing_charges
 from payments.services.process_flow_webhook import FlowWebhookProcessor
 
 
@@ -173,6 +174,7 @@ def checkout(request):
 
     charges = []
     if address:
+        generate_missing_charges(address)
         charges = address.charges.filter(status__in=["pending", "partial", "overdue"]).order_by("due_date", "pk")
 
     return render(
