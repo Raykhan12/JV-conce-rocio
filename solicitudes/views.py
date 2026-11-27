@@ -204,7 +204,10 @@ def contabilidad(request):
         'total_expenses': total_expenses,
         'total_income': total_income,
         'balance': balance,
-        'payment_counts': Payment.all_objects.filter(deleted_at__isnull=True).exclude(status=Payment.Status.PENDING).values('status').annotate(total=Count('pk')),
+        'payment_counts': [
+            {'label': Payment.Status(row['status']).label, 'total': row['total']}
+            for row in Payment.all_objects.filter(deleted_at__isnull=True).exclude(status=Payment.Status.PENDING).values('status').annotate(total=Count('pk'))
+        ],
         'charge_counts': active_charges.values('status').annotate(total=Count('pk')),
     })
 

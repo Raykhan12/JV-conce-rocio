@@ -40,7 +40,7 @@
   <div class="acc-card">
     <div class="acc-card-head"><h2>Estado de los pagos</h2></div>
     <div class="acc-chips">
-      {% for row in payment_counts %}<span class="acc-chip">{{ row.status }} <b>{{ row.total }}</b></span>{% empty %}<span class="acc-empty">Aún no hay pagos registrados.</span>{% endfor %}
+      {% for row in payment_counts %}<span class="acc-chip">{{ row.label }} <b>{{ row.total }}</b></span>{% empty %}<span class="acc-empty">Aún no hay pagos registrados.</span>{% endfor %}
     </div>
   </div>
 </section>
