@@ -68,6 +68,11 @@
   .panel-body .group .invisible { visibility: visible !important; }
 }
 .panel-body tr.group[data-href] { cursor: pointer; }
+@media (max-width: 639px) {
+  .panel-body a.group > .flex > div.w-8 { display: none; }
+  .panel-body a.group { padding: 14px !important; }
+  .panel-body a.group > .flex > span { letter-spacing: .05em; }
+}
 
 /* Contabilidad: pestañas */
 .acc-tabs {
