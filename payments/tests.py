@@ -456,3 +456,28 @@ class CheckoutViewTests(TestCase):
         self.assertIsNotNone(pending.deleted_at)
         self.assertFalse(Payment.objects.filter(pk=pending.pk).exists())
         self.assertTrue(Payment.all_objects.filter(pk=pending.pk).exists())
+
+    def test_address_suggestions_match_partial_text_without_exposing_owner_data(self):
+        response = self.client.get(reverse("payments:address_suggestions"), {"q": "aromos 10"})
+
+        self.assertEqual(response.status_code, 200)
+        results = response.json()["results"]
+        self.assertEqual(results, [{"id": self.address.pk, "label": "Los Aromos 010 Villa Concepción"}])
+        self.assertNotIn("owner_email", response.content.decode())
+        self.assertNotIn(self.address.owner_email, response.content.decode())
+
+    def test_checkout_accepts_an_explicit_suggestion(self):
+        response = self.client.post(reverse("payments:checkout"), {
+            "address": self.address.label,
+            "address_id": self.address.pk,
+        })
+
+        self.assertRedirects(response, reverse("payments:checkout"))
+        detail = self.client.get(reverse("payments:checkout"))
+        self.assertContains(detail, self.address.label)
+
+    def test_checkout_does_not_guess_ambiguous_partial_address(self):
+        response = self.client.post(reverse("payments:checkout"), {"address": "Los Aromos 10"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Selecciona tu dirección de la lista de sugerencias")

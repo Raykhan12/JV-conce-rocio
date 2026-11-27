@@ -1,6 +1,18 @@
 {% extends "publico/base.html" %}
 {% block title %}Pago de cuotas — JJVV{% endblock %}
 
+{% block extra_head %}
+<style>
+  .address-combobox { position: relative; }
+  .address-suggestions { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px); overflow: hidden; border: 1px solid rgba(23,51,43,.16); border-radius: 14px; background: #fff; box-shadow: 0 16px 40px rgba(23,51,43,.16); }
+  .address-suggestions[hidden] { display: none; }
+  .address-suggestion { display: block; width: 100%; min-height: 44px; padding: 11px 14px; border: 0; border-bottom: 1px solid #e9eeeb; background: #fff; color: #17332b; text-align: left; font: inherit; font-size: .86rem; cursor: pointer; }
+  .address-suggestion:last-child { border-bottom: 0; }
+  .address-suggestion:hover, .address-suggestion:focus { background: #edf5f1; outline: none; }
+  .address-help { min-height: 18px; }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="page-hero">
   <div class="site-container page-hero-inner">
@@ -16,10 +28,15 @@
       <div class="form-panel text-center py-12">
         <h2 class="text-2xl font-extrabold text-[#17332b]">Revisa las cuotas de tu hogar</h2>
         <p class="mt-3 text-sm text-[#52665f]">Escribe tu dirección tal como aparece en los registros de la junta. No mostramos nombres ni correos.</p>
-        <form method="post" class="mx-auto mt-7 max-w-xl text-left">
+        <form method="post" class="mx-auto mt-7 max-w-xl text-left" id="address-lookup-form">
           {% csrf_token %}
           <label for="address" class="field-label">Dirección de tu hogar</label>
-          <input id="address" name="address" type="text" required autocomplete="street-address" placeholder="Ej: Pasaje Central 123" class="w-full">
+          <div class="address-combobox">
+            <input id="address" name="address" type="text" required autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Escribe el pasaje, calle o número…" class="w-full" role="combobox" aria-autocomplete="list" aria-controls="address-suggestions" aria-expanded="false">
+            <input id="address-id" name="address_id" type="hidden">
+            <div id="address-suggestions" class="address-suggestions" role="listbox" hidden></div>
+          </div>
+          <p id="address-help" class="address-help mt-2 text-xs text-[#62766e]" aria-live="polite">Escribe al menos 2 letras. Puedes omitir tildes, mayúsculas y ceros iniciales.</p>
           {% if lookup_error %}<p class="mt-2 text-sm font-semibold text-red-700" role="alert">{{ lookup_error }}</p>{% endif %}
           <button type="submit" class="submit-btn mt-4">Consultar deudas</button>
         </form>
@@ -116,6 +133,71 @@
 </section>
 
 <script>
+  const lookupForm = document.getElementById('address-lookup-form');
+  if (lookupForm) {
+    const input = document.getElementById('address');
+    const addressId = document.getElementById('address-id');
+    const list = document.getElementById('address-suggestions');
+    const help = document.getElementById('address-help');
+    let timer;
+    let requestNumber = 0;
+    const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); };
+    const choose = item => {
+      input.value = item.label;
+      addressId.value = item.id;
+      help.textContent = 'Dirección seleccionada. Ahora puedes consultar las cuotas.';
+      close();
+    };
+    const render = items => {
+      list.replaceChildren();
+      if (!items.length) {
+        help.textContent = 'No encontramos coincidencias. Prueba con el nombre del pasaje, calle o número.';
+        close();
+        return;
+      }
+      items.forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'address-suggestion';
+        button.setAttribute('role', 'option');
+        button.textContent = item.label;
+        button.addEventListener('click', () => choose(item));
+        list.appendChild(button);
+      });
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      help.textContent = 'Selecciona una dirección de la lista.';
+    };
+    input.addEventListener('input', () => {
+      addressId.value = '';
+      clearTimeout(timer);
+      const query = input.value.trim();
+      if (query.length < 2) { close(); help.textContent = 'Escribe al menos 2 letras.'; return; }
+      const current = ++requestNumber;
+      timer = setTimeout(async () => {
+        try {
+          const response = await fetch(`{% url 'payments:address_suggestions' %}?q=${encodeURIComponent(query)}`, { headers: {'X-Requested-With': 'XMLHttpRequest'} });
+          const data = await response.json();
+          if (current === requestNumber) render(data.results || []);
+        } catch (_) {
+          if (current === requestNumber) { close(); help.textContent = 'No fue posible buscar sugerencias. Puedes escribir la dirección completa.'; }
+        }
+      }, 180);
+    });
+    input.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' && !list.hidden) { event.preventDefault(); list.querySelector('button')?.focus(); }
+      if (event.key === 'Escape') close();
+    });
+    list.addEventListener('keydown', event => {
+      const buttons = [...list.querySelectorAll('button')];
+      const index = buttons.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown') { event.preventDefault(); buttons[index + 1]?.focus(); }
+      if (event.key === 'ArrowUp') { event.preventDefault(); index > 0 ? buttons[index - 1].focus() : input.focus(); }
+      if (event.key === 'Escape') { close(); input.focus(); }
+    });
+    document.addEventListener('click', event => { if (!event.target.closest('.address-combobox')) close(); });
+  }
+
   const form = document.getElementById('flow-checkout-form');
   if (form) {
     const checks = [...form.querySelectorAll('input[data-amount]')];

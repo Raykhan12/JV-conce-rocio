@@ -2,6 +2,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from difflib import SequenceMatcher
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -29,6 +30,35 @@ def _address_key(value):
     normalized = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode().lower()
     normalized = re.sub(r"\b0+(\d+)\b", r"\1", normalized)
     return "".join(character for character in normalized if character.isalnum())
+
+
+def _address_words(value):
+    return [word for word in re.split(r"[^a-z0-9]+", _address_key_words(value)) if word]
+
+
+def _address_key_words(value):
+    normalized = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"\b0+(\d+)\b", r"\1", normalized)
+
+
+def _address_match_score(address_label, query):
+    label_words = _address_words(address_label)
+    query_words = _address_words(query)
+    if not query_words:
+        return 0
+    label_blob = " ".join(label_words)
+    query_blob = " ".join(query_words)
+    exact_key = _address_key(address_label) == _address_key(query)
+    contains_all = all(word in label_words or any(word in item for item in label_words) for word in query_words)
+    matched_words = sum(any(word in item for item in label_words) for word in query_words)
+    ratio = SequenceMatcher(None, _address_key(query), _address_key(address_label)).ratio()
+    if exact_key:
+        return 100
+    if contains_all:
+        return 80 + (matched_words / len(query_words)) * 10 - min(len(label_blob) - len(query_blob), 30) / 100
+    if ratio >= 0.62:
+        return ratio * 70 + matched_words * 2
+    return 0
 
 
 def _payment_error(request, message, status):
@@ -102,22 +132,29 @@ def checkout(request):
         return redirect("payments:checkout")
     if request.method == "POST":
         address_text = " ".join(request.POST.get("address", "").strip().split())
+        selected_address_id = request.POST.get("address_id", "").strip()
         if not address_text:
             lookup_error = "Ingresa la dirección completa de tu hogar."
         else:
+            selected = Address.objects.filter(pk=selected_address_id, active=True).first() if selected_address_id.isdigit() else None
+            if selected and _address_key(selected.label) != _address_key(address_text):
+                selected = None
             address_key = _address_key(address_text)
             matches = [
                 item
                 for item in Address.objects.filter(active=True).only("pk", "label")
                 if _address_key(item.label) == address_key
             ]
+            if selected:
+                request.session["payment_address_id"] = selected.pk
+                return redirect("payments:checkout")
             if len(matches) == 1:
                 request.session["payment_address_id"] = matches[0].pk
                 return redirect("payments:checkout")
             if len(matches) > 1:
                 lookup_error = "Hay más de un registro con esa dirección. Contacta a Tesorería para resolverlo."
             else:
-                lookup_error = "No encontramos una dirección activa con ese texto. Revísala e inténtalo nuevamente."
+                lookup_error = "Selecciona tu dirección de la lista de sugerencias o revisa cómo está escrita."
 
     addresses = Address.objects.none()
     if request.user.is_authenticated:
@@ -225,3 +262,18 @@ def flow_return(request):
             detail = "Pago confirmado y aplicado a tus cuotas."
 
     return render(request, "payments/flow_return.html", {"state": state, "detail": detail})
+
+
+def address_suggestions(request):
+    query = " ".join(request.GET.get("q", "").strip().split())
+    if len(_address_key(query)) < 2:
+        return JsonResponse({"results": []})
+    matches = []
+    for address in Address.objects.filter(active=True).only("pk", "label"):
+        score = _address_match_score(address.label, query)
+        if score:
+            matches.append((score, address))
+    matches.sort(key=lambda item: (-item[0], item[1].label))
+    return JsonResponse({
+        "results": [{"id": address.pk, "label": address.label} for _, address in matches[:8]],
+    })
