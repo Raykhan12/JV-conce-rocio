@@ -9,12 +9,12 @@ from django.http import FileResponse, HttpResponse
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from datetime import datetime
+from datetime import date, datetime
 from uuid import uuid4
 import csv
 
 from .models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso, ESTADO_CHOICES
-from payments.models import Address, Charge, Expense, Payment, PaymentEvent
+from payments.models import Address, Charge, Expense, FeeConfig, Payment, PaymentEvent
 
 PAYMENT_METHOD_LABELS = {
     'cash': 'Efectivo',
@@ -185,10 +185,27 @@ def contabilidad(request):
         status=Charge.Status.PAID,
     ).order_by('-period_year', '-period_month')
     current_date = timezone.localdate()
+    current_period = (current_date.year, current_date.month)
+    fee_configs = list(FeeConfig.objects.order_by('-valid_from'))
+    address_charges = {}
+    for charge in charges.values('address_id', 'period_year', 'period_month', 'status', 'amount', 'paid_amount'):
+        address_charges.setdefault(charge['address_id'], {})[(charge['period_year'], charge['period_month'])] = charge
     month_names = (
         'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
     )
+
+    def next_period(year, month):
+        month += 1
+        return (year + 1, 1) if month == 13 else (year, month)
+
+    def inferred_fee(year, month):
+        period_date = date(year, month, 1)
+        for config in fee_configs:
+            if config.valid_from <= period_date and (config.valid_to is None or period_date <= config.valid_to):
+                return config.amount
+        return 500 if year <= 2021 else 1000
+
     address_payment_status = list(
         Address.objects.filter(active=True)
         .annotate(
@@ -198,30 +215,60 @@ def contabilidad(request):
         .order_by('label')
     )
     for address in address_payment_status:
-        debt = debt_lookup.get(address.pk, {})
-        address.debt_count = debt.get('count', 0)
-        address.debt_amount = debt.get('debt', 0)
+        period_charges = address_charges.get(address.pk, {})
+        registered_debt = [
+            charge for (year, month), charge in period_charges.items()
+            if (year, month) <= current_period
+            and charge['status'] in [Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE]
+            and charge['amount'] > charge['paid_amount']
+        ]
+        address.debt_count = len(registered_debt)
+        address.debt_amount = sum(charge['amount'] - charge['paid_amount'] for charge in registered_debt)
+        first_missing_period = None
+
         if address.last_paid_year and address.last_paid_month:
             address.last_paid_label = f'{month_names[address.last_paid_month - 1]} {address.last_paid_year}'
             paid_period = (address.last_paid_year, address.last_paid_month)
-            current_period = (current_date.year, current_date.month)
             if paid_period < current_period:
-                next_month = address.last_paid_month + 1
-                next_year = address.last_paid_year + (1 if next_month == 13 else 0)
-                next_month = 1 if next_month == 13 else next_month
-                address.payment_state = f'Pendiente desde {month_names[next_month - 1]} {next_year}'
+                period = next_period(*paid_period)
+                while period <= current_period:
+                    existing = period_charges.get(period)
+                    if existing is None:
+                        address.debt_count += 1
+                        address.debt_amount += inferred_fee(*period)
+                        first_missing_period = first_missing_period or period
+                    period = next_period(*period)
+
+            if address.debt_amount:
+                start_year, start_month = first_missing_period or min(
+                    (charge_period for charge_period, charge in period_charges.items()
+                     if charge['status'] in [Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE]
+                     and charge_period <= current_period),
+                    default=next_period(*paid_period),
+                )
+                address.payment_state = f'Pendiente desde {month_names[start_month - 1]} {start_year}'
+                address.payment_state_key = 'debt'
                 address.payment_state_class = 'is-red'
             elif paid_period == current_period:
                 address.payment_state = 'Al día'
+                address.payment_state_key = 'current'
                 address.payment_state_class = 'is-green'
             else:
                 address.payment_state = 'Pago adelantado registrado'
+                address.payment_state_key = 'advance'
                 address.payment_state_class = 'is-amber'
+        elif address.debt_amount:
+            address.last_paid_label = 'Sin cuota pagada'
+            address.payment_state = 'Tiene cuotas pendientes'
+            address.payment_state_key = 'debt'
+            address.payment_state_class = 'is-red'
         else:
             address.last_paid_label = 'Sin cuota pagada'
             address.payment_state = 'Revisar domicilio'
+            address.payment_state_key = 'review'
             address.payment_state_class = 'is-red'
 
+    pending = sum(address.debt_amount for address in address_payment_status)
     recent_payments = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).select_related('address').order_by('-paid_at')[:30]
     recent_certificates = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago', '-creado_en')[:20]
     payment_addresses = Address.objects.filter(active=True).order_by('label')
