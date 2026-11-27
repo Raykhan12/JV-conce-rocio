@@ -219,6 +219,7 @@ def contabilidad(request):
         registered_debt = [
             charge for (year, month), charge in period_charges.items()
             if (year, month) <= current_period
+            and year not in (2020, 2021)
             and charge['status'] in [Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE]
             and charge['amount'] > charge['paid_amount']
         ]
@@ -233,7 +234,7 @@ def contabilidad(request):
                 period = next_period(*paid_period)
                 while period <= current_period:
                     existing = period_charges.get(period)
-                    if existing is None:
+                    if period[0] not in (2020, 2021) and existing is None:
                         address.debt_count += 1
                         address.debt_amount += inferred_fee(*period)
                         first_missing_period = first_missing_period or period
