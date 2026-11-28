@@ -11,7 +11,6 @@
   </div>
   <div class="acc-report-actions" aria-label="Informes para descargar">
     <a href="{% url 'contabilidad_informe_pdf' %}" class="acc-btn acc-btn--ghost" download>Informe contable PDF</a>
-    <a href="{% url 'deudas_informe_pdf' %}" class="acc-btn acc-btn--ghost" download>Informe de deudas PDF</a>
   </div>
 </div>
 
@@ -112,6 +111,18 @@
 <section data-panel="debts" role="tabpanel" hidden>
   <div class="acc-card">
     <div class="acc-card-head"><h2>Estado mensual por domicilio</h2><p>La deuda combina cuotas registradas pendientes y meses faltantes hasta la fecha, a $1.000 o según la configuración vigente. Los períodos condonados y cancelados se excluyen.</p></div>
+    <form method="get" action="{% url 'deudas_informe_pdf' %}" class="acc-debt-report">
+      <div class="acc-debt-report-copy"><strong>Informe de deuda individual</strong><span>Busca la casa que necesitas presentar.</span></div>
+      <div class="acc-debt-report-controls">
+        <input id="debt-report-search" class="acc-search" type="search" placeholder="Escribe pasaje, villa o número…" autocomplete="off" aria-controls="debt-report-address" list="debt-report-options">
+        <datalist id="debt-report-options">{% for address in address_payment_status %}<option value="{{ address.label }}" data-address-id="{{ address.pk }}"></option>{% endfor %}</datalist>
+        <select id="debt-report-address" class="acc-filter-select" name="address_id" required aria-label="Domicilio del informe PDF">
+          <option value="">Selecciona un domicilio</option>
+          {% for address in address_payment_status %}<option value="{{ address.pk }}" data-search="{{ address.label }} {{ address.owner_name }}">{{ address.label }} — {{ address.owner_name|default:'Sin titular' }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="acc-btn acc-btn--ghost">Descargar informe PDF</button>
+      </div>
+    </form>
     <div class="acc-toolbar acc-toolbar--filters">
       <input class="acc-search" id="debt-search" type="search" placeholder="Buscar dirección o titular…">
       <select id="debt-state-filter" class="acc-filter-select" aria-label="Filtrar por estado">
@@ -312,6 +323,18 @@
       debtVisibleCount.textContent = visible + ' domicilio' + (visible === 1 ? '' : 's');
     }
     [debtSearch, debtStateFilter, debtAmountFilter].forEach(control => control.addEventListener('input', filterDebts));
+
+    const debtReportSearch = document.getElementById('debt-report-search');
+    const debtReportAddress = document.getElementById('debt-report-address');
+    debtReportSearch.addEventListener('input', () => {
+      const query = normalize(debtReportSearch.value.trim());
+      const matching = [...debtReportAddress.options].find(option => option.value && normalize(option.textContent) === query);
+      if (matching) debtReportAddress.value = matching.value;
+    });
+    debtReportAddress.addEventListener('change', () => {
+      const option = debtReportAddress.selectedOptions[0];
+      if (option?.value) debtReportSearch.value = option.textContent.split(' — ')[0];
+    });
 
     function setupStandaloneSorting(tableId, initialField, initialDirection, aliases = {}) {
       const table = document.querySelector(tableId);

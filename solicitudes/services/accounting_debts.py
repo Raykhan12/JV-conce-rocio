@@ -101,3 +101,43 @@ def debt_status_by_address():
             address.payment_state_class = 'is-red'
 
     return addresses
+
+
+def debt_periods_for_address(address):
+    through_date = timezone.localdate()
+    current_period = (through_date.year, through_date.month)
+    charges = list(
+        Charge.all_objects.filter(address=address, deleted_at__isnull=True)
+        .order_by('period_year', 'period_month')
+    )
+    by_period = {(charge.period_year, charge.period_month): charge for charge in charges}
+    last_paid = next((charge for charge in reversed(charges) if charge.status == Charge.Status.PAID), None)
+    periods = []
+
+    for charge in charges:
+        period = (charge.period_year, charge.period_month)
+        if period <= current_period and period[0] not in (2020, 2021):
+            if charge.status in [Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE] and charge.remaining_amount > 0:
+                periods.append({
+                    'year': charge.period_year,
+                    'month': charge.period_month,
+                    'amount': charge.remaining_amount,
+                    'kind': 'Registrada',
+                })
+
+    if last_paid and (last_paid.period_year, last_paid.period_month) < current_period:
+        fee_configs = list(FeeConfig.objects.order_by('-valid_from'))
+        period = _next_period(last_paid.period_year, last_paid.period_month)
+        registered = {(item['year'], item['month']) for item in periods}
+        while period <= current_period:
+            existing = by_period.get(period)
+            if period[0] not in (2020, 2021) and existing is None and period not in registered:
+                periods.append({
+                    'year': period[0],
+                    'month': period[1],
+                    'amount': _inferred_fee(fee_configs, *period),
+                    'kind': 'Calculada',
+                })
+            period = _next_period(*period)
+
+    return sorted(periods, key=lambda item: (item['year'], item['month']))

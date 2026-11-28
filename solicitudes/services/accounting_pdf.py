@@ -11,6 +11,7 @@ from django.utils import timezone
 from payments.models import Expense, Payment
 from solicitudes.models import SolicitudCertificado
 from solicitudes.services.accounting_debts import debt_status_by_address
+from solicitudes.services.accounting_debts import MONTH_NAMES, debt_periods_for_address
 
 
 GREEN = colors.HexColor('#173d31')
@@ -176,33 +177,43 @@ def accounting_report_pdf(request):
     return buffer.getvalue()
 
 
-def debt_report_pdf(request):
+def debt_report_pdf(request, address):
     styles = _styles()
-    buffer, document = _document('Informe de deudas por domicilio JJVV')
-    addresses = debt_status_by_address()
-    indebted = [address for address in addresses if address.debt_amount > 0]
+    buffer, document = _document('Informe de deuda por domicilio JJVV')
+    status = next((item for item in debt_status_by_address() if item.pk == address.pk), None)
+    periods = debt_periods_for_address(address)
     generated_at = timezone.localtime().strftime('%d/%m/%Y %H:%M')
-    total_debt = sum(address.debt_amount for address in indebted)
-    total_months = sum(address.debt_count for address in indebted)
-    rows = [['Dirección', 'Titular', 'Último mes pagado', 'Estado', 'Meses', 'Monto']]
-    for address in sorted(indebted, key=lambda item: (-item.debt_amount, item.label)):
-        rows.append([
-            Paragraph(address.label, styles['Cell']),
-            Paragraph(address.owner_name or 'Sin titular registrado', styles['Cell']),
-            Paragraph(address.last_paid_label, styles['Cell']),
-            Paragraph(address.payment_state, styles['Cell']),
-            str(address.debt_count),
-            Paragraph(clp(address.debt_amount), styles['CellRight']),
+    total_debt = sum(item['amount'] for item in periods)
+    period_rows = [['Período', 'Tipo', 'Monto pendiente']]
+    for period in periods:
+        period_rows.append([
+            f"{MONTH_NAMES[period['month'] - 1]} {period['year']}",
+            period['kind'],
+            Paragraph(clp(period['amount']), styles['CellRight']),
         ])
+    if not period_rows[1:]:
+        period_rows.append(['Sin deuda pendiente', '—', Paragraph(clp(0), styles['CellRight'])])
+
+    last_paid = status.last_paid_label if status else 'Sin cuota pagada'
+    state = status.payment_state if status else 'Sin información'
+    owner = address.owner_name or 'Sin titular registrado'
     story = [
-        Paragraph('Informe de deudas por domicilio', styles['ReportTitle']),
+        Paragraph('Informe individual de deuda', styles['ReportTitle']),
         Paragraph('Junta de Vecinos Villas Concepción-El Rocío', styles['ReportSubtitle']),
         Paragraph(f'Generado el {generated_at} · Responsable: {request.user.get_full_name() or request.user.username}', styles['Tiny']),
+        Spacer(1, 4*mm),
+        _table([
+            ['Dirección', address.label],
+            ['Titular', owner],
+            ['Último mes pagado', last_paid],
+            ['Estado', state],
+            ['Meses pendientes', str(len(periods))],
+            ['Total adeudado', clp(total_debt)],
+        ], [60*mm, 110*mm]),
+        Paragraph('Detalle mensual', styles['SectionTitle']),
+        _table(period_rows, [70*mm, 55*mm, 45*mm], (2,)),
         Spacer(1, 5*mm),
-        Paragraph(f'{len(indebted)} domicilios con deuda estimada · {total_months} meses pendientes · Total {clp(total_debt)}', styles['SectionTitle']),
-        _table(rows, [42*mm, 37*mm, 25*mm, 42*mm, 13*mm, 23*mm], (4, 5)),
-        Spacer(1, 5*mm),
-        Paragraph('Criterio: el informe considera cargos pendientes registrados y meses faltantes hasta la fecha según la configuración vigente. Excluye 2020 y 2021 por condonación. Los montos estimados deben validarse antes de iniciar cobros o acciones de regularización.', styles['Tiny']),
+        Paragraph('Criterio: incluye cargos pendientes registrados y meses faltantes calculados hasta la fecha. Excluye 2020 y 2021 por condonación. Las filas “calculadas” requieren validación antes de emitir cobros o iniciar acciones de regularización.', styles['Tiny']),
     ]
-    document.build(story, onFirstPage=lambda c, d: _page(c, d, 'Informe de deudas por domicilio'), onLaterPages=lambda c, d: _page(c, d, 'Informe de deudas por domicilio'))
+    document.build(story, onFirstPage=lambda c, d: _page(c, d, f'Informe de deuda · {address.label}'), onLaterPages=lambda c, d: _page(c, d, f'Informe de deuda · {address.label}'))
     return buffer.getvalue()

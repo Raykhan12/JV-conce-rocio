@@ -421,7 +421,14 @@ def contabilidad_informe_pdf(request):
 
 @staff_member_required(login_url='/panel/ingresar/')
 def deudas_informe_pdf(request):
-    content = debt_report_pdf(request)
+    try:
+        address_id = int(request.GET.get('address_id', ''))
+    except (TypeError, ValueError):
+        messages.error(request, 'Selecciona un domicilio para generar su informe de deuda.')
+        return redirect('contabilidad')
+    address = get_object_or_404(Address, pk=address_id, active=True)
+    content = debt_report_pdf(request, address)
     response = HttpResponse(content, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="informe-deudas-{timezone.localdate():%Y-%m-%d}.pdf"'
+    safe_name = address.label.replace(' ', '-').lower()
+    response['Content-Disposition'] = f'attachment; filename="deuda-{safe_name}.pdf"'
     return response
