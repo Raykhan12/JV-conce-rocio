@@ -76,6 +76,23 @@ class AccountingPanelTests(TestCase):
         self.assertContains(staff, "Ordenar gastos por concepto")
         self.assertContains(staff, "Ordenar gastos por monto")
         self.assertNotContains(staff, "id=\"payment-income-sort\"")
+        self.assertContains(staff, "Informe contable PDF")
+        self.assertContains(staff, "Informe de deudas PDF")
+
+    def test_staff_can_download_accounting_and_debt_pdfs(self):
+        self.client.force_login(self.staff)
+        for route in ('contabilidad_informe_pdf', 'deudas_informe_pdf'):
+            response = self.client.get(reverse(route))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response['Content-Type'], 'application/pdf')
+            self.assertIn('attachment;', response['Content-Disposition'])
+            self.assertTrue(response.content.startswith(b'%PDF'))
+            self.assertGreater(len(response.content), 1000)
+
+        self.client.logout()
+        response = self.client.get(reverse('contabilidad_informe_pdf'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('panel_login'), response.url)
 
     def test_accounting_csv_exports_all_payment_sources(self):
         self.client.force_login(self.staff)

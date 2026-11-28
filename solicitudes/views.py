@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db import transaction
-from django.db.models import Count, F, OuterRef, Subquery, Sum
+from django.db.models import Count, F, Sum
 from django.http import FileResponse, HttpResponse
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -14,7 +14,9 @@ from uuid import uuid4
 import csv
 
 from .models import SolicitudCertificado, DenunciaVecinal, SolicitudIngreso, ESTADO_CHOICES
-from payments.models import Address, Charge, Expense, FeeConfig, Payment, PaymentEvent
+from payments.models import Address, Charge, Expense, Payment, PaymentEvent
+from solicitudes.services.accounting_debts import debt_status_by_address
+from solicitudes.services.accounting_pdf import accounting_report_pdf, debt_report_pdf
 
 PAYMENT_METHOD_LABELS = {
     'cash': 'Efectivo',
@@ -181,97 +183,7 @@ def contabilidad(request):
         .filter(debt__gt=0)
         .order_by('-debt', 'address__label')
     )
-    debt_lookup = {row['address_id']: row for row in debt_by_address}
-    last_paid_charges = Charge.all_objects.filter(
-        address_id=OuterRef('pk'),
-        deleted_at__isnull=True,
-        status=Charge.Status.PAID,
-    ).order_by('-period_year', '-period_month')
-    current_date = timezone.localdate()
-    current_period = (current_date.year, current_date.month)
-    fee_configs = list(FeeConfig.objects.order_by('-valid_from'))
-    address_charges = {}
-    for charge in charges.values('address_id', 'period_year', 'period_month', 'status', 'amount', 'paid_amount'):
-        address_charges.setdefault(charge['address_id'], {})[(charge['period_year'], charge['period_month'])] = charge
-    month_names = (
-        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-    )
-
-    def next_period(year, month):
-        month += 1
-        return (year + 1, 1) if month == 13 else (year, month)
-
-    def inferred_fee(year, month):
-        period_date = date(year, month, 1)
-        for config in fee_configs:
-            if config.valid_from <= period_date and (config.valid_to is None or period_date <= config.valid_to):
-                return config.amount
-        return 500 if year <= 2021 else 1000
-
-    address_payment_status = list(
-        Address.objects.filter(active=True)
-        .annotate(
-            last_paid_year=Subquery(last_paid_charges.values('period_year')[:1]),
-            last_paid_month=Subquery(last_paid_charges.values('period_month')[:1]),
-        )
-        .order_by('label')
-    )
-    for address in address_payment_status:
-        period_charges = address_charges.get(address.pk, {})
-        registered_debt = [
-            charge for (year, month), charge in period_charges.items()
-            if (year, month) <= current_period
-            and year not in (2020, 2021)
-            and charge['status'] in [Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE]
-            and charge['amount'] > charge['paid_amount']
-        ]
-        address.debt_count = len(registered_debt)
-        address.debt_amount = sum(charge['amount'] - charge['paid_amount'] for charge in registered_debt)
-        first_missing_period = None
-
-        if address.last_paid_year and address.last_paid_month:
-            address.last_paid_label = f'{month_names[address.last_paid_month - 1]} {address.last_paid_year}'
-            paid_period = (address.last_paid_year, address.last_paid_month)
-            if paid_period < current_period:
-                period = next_period(*paid_period)
-                while period <= current_period:
-                    existing = period_charges.get(period)
-                    if period[0] not in (2020, 2021) and existing is None:
-                        address.debt_count += 1
-                        address.debt_amount += inferred_fee(*period)
-                        first_missing_period = first_missing_period or period
-                    period = next_period(*period)
-
-            if address.debt_amount:
-                start_year, start_month = first_missing_period or min(
-                    (charge_period for charge_period, charge in period_charges.items()
-                     if charge['status'] in [Charge.Status.PENDING, Charge.Status.PARTIAL, Charge.Status.OVERDUE]
-                     and charge_period <= current_period),
-                    default=next_period(*paid_period),
-                )
-                address.payment_state = f'Pendiente desde {month_names[start_month - 1]} {start_year}'
-                address.payment_state_key = 'debt'
-                address.payment_state_class = 'is-red'
-            elif paid_period == current_period:
-                address.payment_state = 'Al día'
-                address.payment_state_key = 'current'
-                address.payment_state_class = 'is-green'
-            else:
-                address.payment_state = 'Pago adelantado registrado'
-                address.payment_state_key = 'advance'
-                address.payment_state_class = 'is-amber'
-        elif address.debt_amount:
-            address.last_paid_label = 'Sin cuota pagada'
-            address.payment_state = 'Tiene cuotas pendientes'
-            address.payment_state_key = 'debt'
-            address.payment_state_class = 'is-red'
-        else:
-            address.last_paid_label = 'Sin cuota pagada'
-            address.payment_state = 'Revisar domicilio'
-            address.payment_state_key = 'review'
-            address.payment_state_class = 'is-red'
-
+    address_payment_status = debt_status_by_address()
     pending = sum(address.debt_amount for address in address_payment_status)
     recent_payments = Payment.all_objects.filter(status=Payment.Status.PAID, deleted_at__isnull=True).select_related('address').order_by('-paid_at')[:30]
     recent_certificates = SolicitudCertificado.objects.filter(valor_cobrado__isnull=False).order_by('-fecha_pago', '-creado_en')[:20]
@@ -497,3 +409,19 @@ def registrar_pago_cuota(request):
 
     messages.success(request, f'Pago de ${amount:,} registrado para {address.label}.'.replace(',', '.'))
     return redirect('contabilidad')
+
+
+@staff_member_required(login_url='/panel/ingresar/')
+def contabilidad_informe_pdf(request):
+    content = accounting_report_pdf(request)
+    response = HttpResponse(content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="informe-contable-{timezone.localdate():%Y-%m-%d}.pdf"'
+    return response
+
+
+@staff_member_required(login_url='/panel/ingresar/')
+def deudas_informe_pdf(request):
+    content = debt_report_pdf(request)
+    response = HttpResponse(content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="informe-deudas-{timezone.localdate():%Y-%m-%d}.pdf"'
+    return response

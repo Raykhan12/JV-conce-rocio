@@ -9,6 +9,10 @@
     <h1>Contabilidad y cuotas</h1>
     <p>Ingresos, gastos y deudas de la junta en un solo lugar.</p>
   </div>
+  <div class="acc-report-actions" aria-label="Informes para descargar">
+    <a href="{% url 'contabilidad_informe_pdf' %}" class="acc-btn acc-btn--ghost" download>Informe contable PDF</a>
+    <a href="{% url 'deudas_informe_pdf' %}" class="acc-btn acc-btn--ghost" download>Informe de deudas PDF</a>
+  </div>
 </div>
 
 <div class="acc-tabs" role="tablist" aria-label="Secciones contables">
@@ -165,7 +169,7 @@
         <option value="other">Otro medio</option>
       </select>
       <input class="acc-amount-filter" id="payment-income-min" type="number" min="0" step="1" inputmode="numeric" placeholder="Monto mínimo" aria-label="Monto mínimo de pago">
-      <span class="acc-filter-count" id="payment-income-count"></span>
+      <span class="acc-filter-count" id="payment-income_count"></span>
     </div>
     <div class="acc-scroll">
       <table class="acc-table acc-table--sortable" id="payments-table">

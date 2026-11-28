@@ -103,6 +103,8 @@
 .acc-btn--ghost { background: #fff; color: var(--pnl-green-dark); border: 1px solid var(--pnl-line); }
 .acc-btn--ghost:hover { background: #f1f5f3; }
 .acc-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.acc-report-actions { display: grid; gap: 8px; width: 100%; }
+.acc-report-actions .acc-btn { text-align: center; text-decoration: none; }
 
 /* Tarjetas KPI */
 .acc-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
@@ -205,9 +207,8 @@
 /* Tablet y escritorio */
 @media (min-width: 640px) {
   .acc-form { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 20px; }
-  .acc-toolbar--filters { grid-template-columns: minmax(220px, 1fr) 180px 160px auto; align-items: center; }
-  .acc-toolbar--income { grid-template-columns: minmax(210px, 1.5fr) minmax(145px, .8fr) minmax(135px, .7fr) auto; align-items: center; }
-  .acc-toolbar--income:has(#certificate-income-search) { grid-template-columns: minmax(250px, 1.5fr) minmax(150px, .7fr) auto; }
+  .acc-report-actions { display: flex; width: auto; justify-content: flex-end; }
+  .acc-report-actions .acc-btn { width: auto; white-space: nowrap; }
 }
 
 @media (min-width: 768px) {
